@@ -82,6 +82,9 @@ app.listen(PORT, () => {
 
 app.post('/agent/run', async (req: Request, res: Response) => {
   const { transcript } = req.body;
+
+  // log that we received the request
+  console.log('Received request to run agent loop:', req.body)
   
   if (!transcript) {
     return res.status(400).json({ error: 'Missing required fields: transcript' });

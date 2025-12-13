@@ -112,7 +112,7 @@ export class ElevenLabsWebSocket {
   /**
    * Handle incoming WebSocket messages
    */
-  private handleMessage(data: any): void {
+  private async handleMessage(data: any): Promise<void> {
     // Handle different message types
     if (data.message_type) {
       switch (data.message_type) {
@@ -128,6 +128,18 @@ export class ElevenLabsWebSocket {
 
         case 'committed_transcript':
           if (data.text && this.callbacks.onCommittedTranscript) {
+            console.log('Committed transcript:', data.text)
+            // TODO replace hardcoded localhost:3000 with process.env.BACKEND_URL
+            const response = await fetch(`http://localhost:3000/agent/run`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ transcript: data.text}),
+            })
+            const backendResponse = await response.json()
+            // log response code from backend
+            console.log('Backend response code:', response.status)
             this.callbacks.onCommittedTranscript(data.text)
           }
           break
