@@ -75,30 +75,31 @@ function App(): React.JSX.Element {
   const fetchElevenLabsToken = async (): Promise<string> => {
     const url = `${BACKEND_URL}/scribe-token`
     console.log('Fetching token from:', url)
-    
+
     try {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       })
-      
+
       console.log('Response status:', response.status, response.statusText)
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.error('Error response:', errorData)
         throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
       }
-      
+
       const data = (await response.json()) as { token: string }
       console.log('Token received successfully')
       return data.token
     } catch (error) {
       console.error('Failed to fetch ElevenLabs token:', error)
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error(`Network error: Could not connect to backend at ${url}. Make sure the backend server is running on ${BACKEND_URL}`)
+        throw new Error(`Network error: Could not connect 
+          to backend at ${url}. Make sure the backend server is running on ${BACKEND_URL}`)
       }
       throw error
     }
@@ -118,7 +119,6 @@ function App(): React.JSX.Element {
       elevenLabsTokenRef.current = null
       setPartialTranscript('')
       setAudioDebug({ mic: 'Stopped', system: 'Stopped' })
-      
       // Pre-fetch new token for next use (tokens are single-use)
       setIsReady(false)
       prefetchToken()
@@ -128,7 +128,6 @@ function App(): React.JSX.Element {
         alert('Token not ready yet. Please wait a moment and try again.')
         return
       }
-      
       try {
         const token = elevenLabsTokenRef.current
         console.log('Using pre-fetched token:', token.substring(0, 20) + '...')
@@ -136,7 +135,7 @@ function App(): React.JSX.Element {
         // Connect to ElevenLabs WebSocket
         const ws = new ElevenLabsWebSocket()
         elevenLabsWsRef.current = ws
-        
+
         await ws.connect(token, {
           onPartialTranscript: (text) => {
             console.log('Partial transcript:', text)
@@ -158,7 +157,7 @@ function App(): React.JSX.Element {
           },
           onClose: () => {
             console.log('ElevenLabs WebSocket closed')
-          },
+          }
         })
 
         // Start audio capture
@@ -166,8 +165,7 @@ function App(): React.JSX.Element {
         setIsListening(true)
       } catch (error) {
         console.error('Failed to start audio capture:', error)
-        const errorMessage =
-          error instanceof Error ? error.message : 'Unknown error occurred'
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
         alert(
           `Failed to start audio capture:\n\n${errorMessage}\n\n` +
             'Please ensure:\n' +
@@ -211,7 +209,10 @@ function App(): React.JSX.Element {
             )}
           </div>
           {committedTranscripts.length > 0 && (
-            <div className="committed-transcripts" style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
+            <div
+              className="committed-transcripts"
+              style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}
+            >
               <strong>Committed:</strong>
               {committedTranscripts.slice(-3).map((text, idx) => (
                 <div key={idx} className="transcript-item" style={{ marginTop: '5px' }}>
@@ -232,7 +233,13 @@ function App(): React.JSX.Element {
           onClick={toggleListening}
           disabled={!isReady && !isListening}
           aria-label={isListening ? 'Stop listening' : 'Start listening'}
-          title={!isReady && !isListening ? 'Initializing...' : isListening ? 'Stop audio capture' : 'Start audio capture'}
+          title={
+            !isReady && !isListening
+              ? 'Initializing...'
+              : isListening
+                ? 'Stop audio capture'
+                : 'Start audio capture'
+          }
         >
           {isListening ? '⏸' : '🎤'}
         </button>
