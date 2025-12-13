@@ -5,7 +5,9 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 const USE_MOCK_MODE = true
 
 function createWindow(): void {
+  console.log('Creating window...')
   const { width } = screen.getPrimaryDisplay().workAreaSize
+  console.log('Screen width:', width)
 
   // Create the browser window.
   const WIN_W = 420
@@ -26,10 +28,15 @@ function createWindow(): void {
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      nodeIntegration: false,
+      contextIsolation: true
     }
   }
+
+  console.log('Creating BrowserWindow with options:', baseOptions)
   const mainWindow = new BrowserWindow(baseOptions)
+  console.log('BrowserWindow created successfully')
 
   // Keep window visible across macOS spaces/desktops
   if (process.platform === 'darwin') {
@@ -37,14 +44,34 @@ function createWindow(): void {
   }
 
   mainWindow.on('ready-to-show', () => {
+    console.log('Window ready to show')
     mainWindow.show()
+    console.log('Window shown')
     // Ensure the window is click-through by default; renderer will toggle when hovered
     // forward:true allows the window to still receive mousemove/hover events
     try {
       mainWindow.setIgnoreMouseEvents(true, { forward: true })
-    } catch {
-      // ignore if the platform or electron version doesn't support options
+      console.log('Set ignore mouse events')
+    } catch (error) {
+      console.error('Failed to set ignore mouse events:', error)
     }
+  })
+
+  // Add error handlers
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription)
+  })
+
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error('Renderer process gone. Reason:', details.reason, 'Exit code:', details.exitCode)
+  })
+
+  mainWindow.on('unresponsive', () => {
+    console.error('Window became unresponsive')
+  })
+
+  mainWindow.on('close', () => {
+    console.log('Window closing')
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -55,9 +82,22 @@ function createWindow(): void {
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    console.log('Loading dev URL:', process.env['ELECTRON_RENDERER_URL'])
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']).catch((err) => {
+      console.error('Failed to load URL:', err)
+    })
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    const htmlPath = join(__dirname, '../renderer/index.html')
+    console.log('Loading HTML file:', htmlPath)
+    mainWindow.loadFile(htmlPath).catch((err) => {
+      console.error('Failed to load file:', err)
+    })
+  }
+
+  // Open DevTools in development
+  if (is.dev) {
+    console.log('Opening DevTools...')
+    mainWindow.webContents.openDevTools({ mode: 'detach' })
   }
 
   // Handle set-ignore-mouse IPC
@@ -85,10 +125,21 @@ function createWindow(): void {
   }
 }
 
+// Global error handlers
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason)
+})
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  console.log('App ready, platform:', process.platform, 'arch:', process.arch)
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -105,10 +156,13 @@ app.whenReady().then(() => {
   createWindow()
 
   app.on('activate', function () {
+    console.log('App activated')
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+}).catch((error) => {
+  console.error('Failed to initialize app:', error)
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common
