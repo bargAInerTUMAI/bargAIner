@@ -28,14 +28,18 @@ function App(): React.JSX.Element {
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center">
+    <div className="app-root">
       <div
-        className="backdrop-blur-md bg-black/30 border border-white/20 rounded-lg p-4 shadow-lg max-w-sm"
+        className="assistant-card"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        role="dialog"
+        aria-label="Sales Assistant"
       >
-        <h2 className="text-white text-lg font-semibold mb-2">Sales Assistant</h2>
-        <p className="text-white/80">{suggestion || 'Listening...'}</p>
+        {/* <div className="assistant-header">
+          <h2>Sales Assistant</h2>
+        </div> */}
+        <div className="assistant-body">{suggestion || 'Listening...'}</div>
       </div>
     </div>
   )

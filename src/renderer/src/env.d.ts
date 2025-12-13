@@ -6,6 +6,9 @@ declare global {
       send: (channel: string, ...args: unknown[]) => void
       on: (channel: string, listener: (...args: unknown[]) => void) => void
       off: (channel: string, listener: (...args: unknown[]) => void) => void
+      process: {
+        versions: NodeJS.ProcessVersions
+      }
     }
   }
 }

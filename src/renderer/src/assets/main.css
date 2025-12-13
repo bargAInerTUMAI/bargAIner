@@ -2,12 +2,14 @@
 @import './base.css';
 
 body {
+  /* Keep the window transparent; render content with CSS glass effect */
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background-image: url('./wavy-lines.svg');
-  background-size: cover;
+  background: transparent;
+  height: 100vh;
+  margin: 0;
   user-select: none;
 }
 
@@ -32,7 +34,58 @@ code {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  margin-bottom: 80px;
+  width: 100%;
+  height: 100%;
+}
+
+/* App root that keeps the window area centered and click-through by default */
+.app-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  /* make entire window click-through except card */
+}
+
+/* Frosty assistant card styling (pure CSS) */
+.assistant-card {
+  pointer-events: auto;
+  /* capture events when hovered/clicked */
+  width: 380px;
+  min-height: 100px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: rgba(20, 26, 35, 0.72);
+  color: #ffffff;
+  /* box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); */
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  text-align: left;
+}
+
+.assistant-card:hover {
+  /* background: rgba(18, 24, 32, 0.86); */
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.assistant-header h2 {
+  margin: 0 0 6px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.assistant-body {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.4;
 }
 
 .logo {

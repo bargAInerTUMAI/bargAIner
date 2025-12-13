@@ -24,6 +24,9 @@ const api = {
     } else {
       ipcRenderer.removeListener(channel, listener as unknown as (...args: unknown[]) => void)
     }
+  },
+  process: {
+    versions: process.versions
   }
 }
 

@@ -1,7 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, screen } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
 
 const USE_MOCK_MODE = true
 
@@ -9,26 +8,43 @@ function createWindow(): void {
   const { width } = screen.getPrimaryDisplay().workAreaSize
 
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 400,
-    height: 200,
-    x: width - 420,
-    y: 50,
+  const WIN_W = 420
+  const WIN_H = 120
+  // Build single options object (no platform-specific visuals)
+  const baseOptions: Electron.BrowserWindowConstructorOptions = {
+    width: WIN_W,
+    height: WIN_H,
+    // center horizontally and sit near the top (under webcam)
+    x: Math.round((width - WIN_W) / 2),
+    y: 10,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
+    resizable: true,
     hasShadow: false,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
-  })
+  }
+  const mainWindow = new BrowserWindow(baseOptions)
+
+  // Keep window visible across macOS spaces/desktops
+  if (process.platform === 'darwin') {
+    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  }
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    // Ensure the window is click-through by default; renderer will toggle when hovered
+    // forward:true allows the window to still receive mousemove/hover events
+    try {
+      mainWindow.setIgnoreMouseEvents(true, { forward: true })
+    } catch {
+      // ignore if the platform or electron version doesn't support options
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
