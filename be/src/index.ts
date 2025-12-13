@@ -1,11 +1,10 @@
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import { runAgentLoop, jobStore } from './agent_loop';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-import { runAgentLoop } from './agent_loop';
-
-import { jobStore } from './agent_loop';
 
 // Middleware
 app.use(cors());
@@ -41,6 +40,27 @@ app.listen(PORT, () => {
 
 app.post('/agent/run', async (req: Request, res: Response) => {
   const { counter, transcript } = req.body;
+  
+  if (!counter || !transcript) {
+    return res.status(400).json({ error: 'Missing required fields: counter and transcript' });
+  }
+  
   runAgentLoop(counter, transcript);
-  res.status(200).json({ message: 'Agent loop started' });
+  res.status(200).json({ message: 'Agent loop started', counter });
+});
+
+app.get('/agent/result/:counter', (req: Request, res: Response) => {
+  const counter = parseInt(req.params.counter, 10);
+  
+  if (isNaN(counter)) {
+    return res.status(400).json({ error: 'Invalid counter parameter' });
+  }
+  
+  const result = jobStore.get(counter);
+  
+  if (result === undefined) {
+    return res.status(404).json({ error: 'Result not found for this counter', counter });
+  }
+  
+  res.status(200).json({ counter, result });
 });
