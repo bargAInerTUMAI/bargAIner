@@ -217,10 +217,10 @@ function App(): React.JSX.Element {
       >
         <div className="assistant-body">
           <div className="suggestion-text">
-            {partialTranscript ? (
-              <>
-                <strong>Live:</strong> {partialTranscript}
-              </>
+            {agentMessages.length > 0 ? (
+              <div style={{ whiteSpace: 'pre-wrap' }}>
+                {agentMessages[agentMessages.length - 1]}
+              </div>
             ) : isListening ? (
               'Listening...'
             ) : !isReady ? (
@@ -229,19 +229,6 @@ function App(): React.JSX.Element {
               'Click the mic to start recording'
             )}
           </div>
-          {committedTranscripts.length > 0 && (
-            <div
-              className="committed-transcripts"
-              style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}
-            >
-              <strong>Committed:</strong>
-              {committedTranscripts.slice(-3).map((text, idx) => (
-                <div key={idx} className="transcript-item" style={{ marginTop: '5px' }}>
-                  • {text}
-                </div>
-              ))}
-            </div>
-          )}
           {isListening && (
             <div className="audio-debug">
               <div className="audio-source">{audioDebug.mic}</div>
