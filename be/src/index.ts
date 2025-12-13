@@ -96,5 +96,8 @@ app.post('/agent/run', async (req: Request, res: Response) => {
 
 app.get('/agent/poll', (req: Request, res: Response) => {
   const result = poll();
+  if (result) {
+    console.log("Polled: ", result);
+  }
   res.status(200).json({ result });
 });

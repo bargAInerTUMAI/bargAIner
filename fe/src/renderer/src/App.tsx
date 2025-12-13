@@ -9,6 +9,7 @@ function App(): React.JSX.Element {
   const [isReady, setIsReady] = useState<boolean>(false)
   const [partialTranscript, setPartialTranscript] = useState<string>('')
   const [committedTranscripts, setCommittedTranscripts] = useState<string[]>([])
+  const [agentMessages, setAgentMessages] = useState<string[]>([])
   const [audioDebug, setAudioDebug] = useState<{
     mic: string
     system: string
@@ -52,6 +53,26 @@ function App(): React.JSX.Element {
         elevenLabsWsRef.current.disconnect()
       }
     }
+  }, [])
+
+  // Poll for agent messages
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/agent/poll`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.result) {
+            setAgentMessages((prev) => [...prev, data.result])
+          }
+          console.log('Polled agent result:', data.result);
+        }
+      } catch (error) {
+        console.error('Polling error:', error)
+      }
+    }, 1000)
+
+    return () => clearInterval(intervalId)
   }, [])
 
   const handleAudioData = (data: AudioData, source: 'mic' | 'system'): void => {

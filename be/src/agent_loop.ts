@@ -205,6 +205,7 @@ export async function runAgentLoop(current_transcript: string): Promise<void> {
 
         // Store the agent's final response
         jobStore.push(result.text);
+        console.log(`🗃️ [Agent ${id}] Result stored. Current jobStore length: ${jobStore}`);
     } catch (error) {
         console.error(`❌ [Agent ${id}] Error running agent loop:`, error);
     }
