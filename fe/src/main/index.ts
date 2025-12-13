@@ -2,7 +2,6 @@ import { app, shell, BrowserWindow, ipcMain, screen } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
-const USE_MOCK_MODE = true
 
 function createWindow(): void {
   const { width } = screen.getPrimaryDisplay().workAreaSize
@@ -68,21 +67,6 @@ function createWindow(): void {
     }
   })
 
-  // Mock mode: simulate AI suggestions
-  if (USE_MOCK_MODE) {
-    const fakeObjections = [
-      "It's too expensive",
-      'Send me an email',
-      'I need to think about it',
-      'Can you give me a discount?',
-      "I'm not interested right now"
-    ]
-    let index = 0
-    setInterval(() => {
-      mainWindow.webContents.send('ai-suggestion', fakeObjections[index])
-      index = (index + 1) % fakeObjections.length
-    }, 5000)
-  }
 }
 
 // This method will be called when Electron has finished

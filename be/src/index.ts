@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 
@@ -30,6 +31,45 @@ app.get('/', (req: Request, res: Response) => {
       health: '/health'
     }
   });
+});
+
+// ElevenLabs token generation endpoint
+app.get('/scribe-token', async (req: Request, res: Response) => {
+  try {
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    
+    if (!apiKey) {
+      return res.status(500).json({
+        error: 'ELEVENLABS_API_KEY is not configured. Please set it in your .env file.'
+      });
+    }
+
+    const response = await fetch(
+      'https://api.elevenlabs.io/v1/single-use-token/realtime_scribe',
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      return res.status(response.status).json({
+        error: 'Failed to generate token',
+        details: errorData
+      });
+    }
+
+    const data = await response.json() as { token: string };
+    res.json({ token: data.token });
+  } catch (error) {
+    console.error('Error generating ElevenLabs token:', error);
+    res.status(500).json({
+      error: 'Internal server error while generating token'
+    });
+  }
 });
 
 // Start server
