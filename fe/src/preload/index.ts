@@ -25,6 +25,8 @@ const api = {
       ipcRenderer.removeListener(channel, listener as unknown as (...args: unknown[]) => void)
     }
   },
+  invoke: (channel: string, ...args: unknown[]): Promise<unknown> =>
+    ipcRenderer.invoke(channel, ...args),
   process: {
     versions: process.versions
   }

@@ -68,6 +68,24 @@ function createWindow(): void {
     }
   })
 
+  // Provide window bounds to renderer on request
+  ipcMain.handle('get-window-bounds', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return null
+    return win.getBounds()
+  })
+
+  // Resize window to given width/height
+  ipcMain.on('set-window-size', (event, width: number, height: number) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win && typeof width === 'number' && typeof height === 'number') {
+      // enforce minimum sizes
+      const w = Math.max(200, Math.round(width))
+      const h = Math.max(60, Math.round(height))
+      win.setSize(w, h)
+    }
+  })
+
   // Mock mode: simulate AI suggestions
   if (USE_MOCK_MODE) {
     const fakeObjections = [
