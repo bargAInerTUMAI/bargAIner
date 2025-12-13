@@ -55,7 +55,7 @@ code {
   /* capture events when hovered/clicked */
   position: relative;
   width: 380px;
-  min-height: 100px;
+  height: 120px; /* Fixed height */
   padding: 18px 20px;
   border-radius: 14px;
   background: rgba(20, 26, 35, 0.72);
@@ -68,6 +68,7 @@ code {
   justify-content: center;
   gap: 6px;
   text-align: left;
+  overflow: hidden;
 }
 
 .assistant-card:hover {
@@ -88,7 +89,29 @@ code {
   line-height: 1.4;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  flex: 1;
+  overflow: hidden;
+  padding-right: 50px; /* Space for the button */
+}
+
+/* Custom scrollbar for the transcript area */
+.assistant-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.assistant-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.assistant-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.assistant-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .suggestion-text {
@@ -116,8 +139,9 @@ code {
 
 .audio-toggle-btn {
   position: absolute;
-  bottom: 12px;
+  top: 50%;
   right: 12px;
+  transform: translateY(-50%);
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -132,6 +156,7 @@ code {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   outline: none;
+  z-index: 10;
 }
 
 .audio-toggle-btn:hover {
@@ -153,6 +178,20 @@ code {
   background: rgba(239, 68, 68, 1);
   border-color: rgba(255, 255, 255, 0.4);
 
+}
+
+.audio-toggle-btn.loading {
+  background: rgba(100, 100, 100, 0.6);
+  cursor: not-allowed;
+}
+
+.audio-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.audio-toggle-btn:disabled:hover {
+  transform: none;
 }
 
 @keyframes pulse {

@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { AudioCapture, AudioData } from './services/audioCapture'
+import { ElevenLabsWebSocket } from './services/elevenLabsWebSocket'
+
+const BACKEND_URL = 'http://localhost:3000'
 
 function App(): React.JSX.Element {
-  const [suggestion, setSuggestion] = useState<string>('')
   const [isListening, setIsListening] = useState<boolean>(false)
+  const [isReady, setIsReady] = useState<boolean>(false)
+  const [partialTranscript, setPartialTranscript] = useState<string>('')
+  const [committedTranscripts, setCommittedTranscripts] = useState<string[]>([])
   const [audioDebug, setAudioDebug] = useState<{
     mic: string
     system: string
@@ -12,25 +17,39 @@ function App(): React.JSX.Element {
     system: 'No system data'
   })
   const audioCaptureRef = useRef<AudioCapture | null>(null)
+  const elevenLabsTokenRef = useRef<string | null>(null)
+  const elevenLabsWsRef = useRef<ElevenLabsWebSocket | null>(null)
+
+  // Pre-fetch token on mount
+  const prefetchToken = async (): Promise<void> => {
+    try {
+      const token = await fetchElevenLabsToken()
+      elevenLabsTokenRef.current = token
+      setIsReady(true)
+      console.log('Token pre-fetched and ready')
+    } catch (error) {
+      console.error('Failed to pre-fetch token:', error)
+      // Retry after 2 seconds
+      setTimeout(prefetchToken, 2000)
+    }
+  }
 
   useEffect(() => {
-    // Listen for AI suggestions (only args forwarded)
-    const onSuggestion = (...args: unknown[]): void => {
-      const txt = typeof args[0] === 'string' ? (args[0] as string) : String(args[0] ?? '')
-      setSuggestion(txt)
-    }
-    window.electron.on('ai-suggestion', onSuggestion)
-
     // Initially set to ignore mouse events
     window.electron.send('set-ignore-mouse', true)
 
     // Initialize audio capture
     audioCaptureRef.current = new AudioCapture({ sampleRate: 16000, channelCount: 1 })
 
+    // Pre-fetch ElevenLabs token
+    prefetchToken()
+
     return () => {
-      if (window.electron.off) window.electron.off('ai-suggestion', onSuggestion)
       if (audioCaptureRef.current) {
         audioCaptureRef.current.stop()
+      }
+      if (elevenLabsWsRef.current) {
+        elevenLabsWsRef.current.disconnect()
       }
     }
   }, [])
@@ -47,24 +66,42 @@ function App(): React.JSX.Element {
       [source]: `${source === 'mic' ? 'Mic' : 'System'}: ${level}% | ${data.buffer.length} samples`
     }))
 
-    // TODO: Send audio data to Eleven Labs
-    // The audio data is already in the correct format:
-    // - Format: PCM 16-bit, little-endian (Int16Array)
-    // - Sample Rate: 16kHz (pcm_16000)
-    // - Channels: Mono
-    //
-    // To integrate with Eleven Labs:
-    // 1. Import: import { sendToElevenLabs, pcmToBase64 } from './services/elevenLabsIntegration'
-    // 2. Call: await sendToElevenLabs(data.buffer, source, { apiKey: 'your-api-key' })
-    //
-    // See elevenLabsIntegration.ts for implementation details
+    // Send audio data to ElevenLabs WebSocket (only mic audio for STT)
+    if (source === 'mic' && elevenLabsWsRef.current?.connected) {
+      elevenLabsWsRef.current.sendAudioChunk(data.buffer)
+    }
+  }
 
-    console.log(`${source} audio:`, {
-      level,
-      sampleCount: data.buffer.length,
-      timestamp: data.timestamp,
-      format: 'pcm_16000 (16-bit PCM, 16kHz, mono)'
-    })
+  const fetchElevenLabsToken = async (): Promise<string> => {
+    const url = `${BACKEND_URL}/scribe-token`
+    console.log('Fetching token from:', url)
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      console.log('Response status:', response.status, response.statusText)
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Error response:', errorData)
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      const data = (await response.json()) as { token: string }
+      console.log('Token received successfully')
+      return data.token
+    } catch (error) {
+      console.error('Failed to fetch ElevenLabs token:', error)
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error(`Network error: Could not connect to backend at ${url}. Make sure the backend server is running on ${BACKEND_URL}`)
+      }
+      throw error
+    }
   }
 
   const toggleListening = async (): Promise<void> => {
@@ -73,18 +110,70 @@ function App(): React.JSX.Element {
     if (isListening) {
       // Stop listening
       await audioCaptureRef.current.stop()
+      if (elevenLabsWsRef.current) {
+        elevenLabsWsRef.current.disconnect()
+        elevenLabsWsRef.current = null
+      }
       setIsListening(false)
+      elevenLabsTokenRef.current = null
+      setPartialTranscript('')
       setAudioDebug({ mic: 'Stopped', system: 'Stopped' })
+      
+      // Pre-fetch new token for next use (tokens are single-use)
+      setIsReady(false)
+      prefetchToken()
     } else {
-      // Start listening
+      // Start listening - use pre-fetched token
+      if (!elevenLabsTokenRef.current) {
+        alert('Token not ready yet. Please wait a moment and try again.')
+        return
+      }
+      
       try {
+        const token = elevenLabsTokenRef.current
+        console.log('Using pre-fetched token:', token.substring(0, 20) + '...')
+
+        // Connect to ElevenLabs WebSocket
+        const ws = new ElevenLabsWebSocket()
+        elevenLabsWsRef.current = ws
+        
+        await ws.connect(token, {
+          onPartialTranscript: (text) => {
+            console.log('Partial transcript:', text)
+            setPartialTranscript(text)
+          },
+          onCommittedTranscript: (text) => {
+            console.log('Committed transcript:', text)
+            setCommittedTranscripts((prev) => [...prev, text])
+            setPartialTranscript('') // Clear partial when committed
+          },
+          onCommittedTranscriptWithTimestamps: (text, words) => {
+            console.log('Committed transcript with timestamps:', text, words)
+            setCommittedTranscripts((prev) => [...prev, text])
+            setPartialTranscript('')
+          },
+          onError: (error) => {
+            console.error('ElevenLabs WebSocket error:', error)
+            alert(`ElevenLabs WebSocket error: ${error.message}`)
+          },
+          onClose: () => {
+            console.log('ElevenLabs WebSocket closed')
+          },
+        })
+
+        // Start audio capture
         await audioCaptureRef.current.start(handleAudioData)
         setIsListening(true)
       } catch (error) {
         console.error('Failed to start audio capture:', error)
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error occurred'
         alert(
-          'Failed to start audio capture. Please ensure microphone permissions are granted.\n\n' +
-            'For system audio: You need to share your screen/tab with audio when prompted.'
+          `Failed to start audio capture:\n\n${errorMessage}\n\n` +
+            'Please ensure:\n' +
+            '- Backend server is running\n' +
+            '- Microphone permissions are granted\n' +
+            '- For system audio: Share your screen/tab with audio when prompted'
         )
       }
     }
@@ -108,7 +197,29 @@ function App(): React.JSX.Element {
         aria-label="Sales Assistant"
       >
         <div className="assistant-body">
-          <div className="suggestion-text">{suggestion || 'Listening...'}</div>
+          <div className="suggestion-text">
+            {partialTranscript ? (
+              <>
+                <strong>Live:</strong> {partialTranscript}
+              </>
+            ) : isListening ? (
+              'Listening...'
+            ) : !isReady ? (
+              'Initializing...'
+            ) : (
+              'Click the mic to start recording'
+            )}
+          </div>
+          {committedTranscripts.length > 0 && (
+            <div className="committed-transcripts" style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
+              <strong>Committed:</strong>
+              {committedTranscripts.slice(-3).map((text, idx) => (
+                <div key={idx} className="transcript-item" style={{ marginTop: '5px' }}>
+                  • {text}
+                </div>
+              ))}
+            </div>
+          )}
           {isListening && (
             <div className="audio-debug">
               <div className="audio-source">{audioDebug.mic}</div>
@@ -117,10 +228,11 @@ function App(): React.JSX.Element {
           )}
         </div>
         <button
-          className={`audio-toggle-btn ${isListening ? 'listening' : ''}`}
+          className={`audio-toggle-btn ${isListening ? 'listening' : ''} ${!isReady && !isListening ? 'loading' : ''}`}
           onClick={toggleListening}
+          disabled={!isReady && !isListening}
           aria-label={isListening ? 'Stop listening' : 'Start listening'}
-          title={isListening ? 'Stop audio capture' : 'Start audio capture'}
+          title={!isReady && !isListening ? 'Initializing...' : isListening ? 'Stop audio capture' : 'Start audio capture'}
         >
           {isListening ? '⏸' : '🎤'}
         </button>
