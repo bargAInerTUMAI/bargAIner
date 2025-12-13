@@ -12,11 +12,10 @@ const knowledgeBaseFolder = path.join(__dirname, "knowledge_base");
 /**
  * Runs the agent loop for a given transcript and returns the result.
  * 
- * @param counter - The monotonically increasing counter from the frontend.
  * @param current_transcript - The current transcript from 11 labs.
  * @returns A promise that resolves to a result string. This string is sent to the frontend to be displayed to user.
  */
-export async function runAgentLoop(counter: number, current_transcript: string): Promise<void> { 
+export async function runAgentLoop(current_transcript: string): Promise<void> { 
 
     // System prompt that defines the agent's role and behavior
     const systemPrompt = `
@@ -190,23 +189,24 @@ export async function runAgentLoop(counter: number, current_transcript: string):
         stopWhen: stepCountIs(15), // Limit to 15 steps to ensure quick responses
     });
 
+    const id = current_transcript.substring(0, 8);
     try {
-        console.log(`\n🚀 [Agent ${counter}] Starting agent loop...`);
-        console.log(`📝 [Agent ${counter}] Transcript:`, current_transcript.substring(0, 100) + '...');
+        console.log(`\n🚀 [Agent ${id}] Starting agent loop...`);
+        console.log(`📝 [Agent ${id}] Transcript:`, current_transcript.substring(0, 100) + '...');
         
         // Run the agent with the current transcript
         const result = await negotiationAgent.generate({
             prompt: `Current transcript from the negotiation:\n\n"${current_transcript}"\n\nProvide 2-3 short, punchy bullet points the Buyer can use right now.`,
         });
 
-        console.log(`✅ [Agent ${counter}] Agent completed successfully`);
-        console.log(`📊 [Agent ${counter}] Steps taken:`, result.steps.length);
-        console.log(`💬 [Agent ${counter}] Final response:`, result.text);
+        console.log(`✅ [Agent ${id}] Agent completed successfully`);
+        console.log(`📊 [Agent ${id}] Steps taken:`, result.steps.length);
+        console.log(`💬 [Agent ${id}] Final response:`, result.text);
 
         // Store the agent's final response
         jobStore.push(result.text);
     } catch (error) {
-        console.error(`❌ [Agent ${counter}] Error running agent loop:`, error);
+        console.error(`❌ [Agent ${id}] Error running agent loop:`, error);
     }
 }
 

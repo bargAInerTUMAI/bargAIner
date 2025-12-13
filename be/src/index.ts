@@ -81,30 +81,14 @@ app.listen(PORT, () => {
 
 
 app.post('/agent/run', async (req: Request, res: Response) => {
-  const { counter, transcript } = req.body;
+  const { transcript } = req.body;
   
-  if (!counter || !transcript) {
-    return res.status(400).json({ error: 'Missing required fields: counter and transcript' });
+  if (!transcript) {
+    return res.status(400).json({ error: 'Missing required fields: transcript' });
   }
   
-  runAgentLoop(counter, transcript);
-  res.status(200).json({ message: 'Agent loop started', counter });
-});
-
-app.get('/agent/result/:counter', (req: Request, res: Response) => {
-  const counter = parseInt(req.params.counter, 10);
-  
-  if (isNaN(counter)) {
-    return res.status(400).json({ error: 'Invalid counter parameter' });
-  }
-  
-  const result = jobStore.get(counter);
-  
-  if (result === undefined) {
-    return res.status(404).json({ error: 'Result not found for this counter', counter });
-  }
-  
-  res.status(200).json({ counter, result });
+  runAgentLoop(transcript);
+  res.status(200).json({ message: 'Agent loop started' });
 });
 
 app.get('/agent/poll', (req: Request, res: Response) => {
