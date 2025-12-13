@@ -36,9 +36,6 @@ function App(): React.JSX.Element {
         role="dialog"
         aria-label="Sales Assistant"
       >
-        {/* <div className="assistant-header">
-          <h2>Sales Assistant</h2>
-        </div> */}
         <div className="assistant-body">{suggestion || 'Listening...'}</div>
       </div>
     </div>
