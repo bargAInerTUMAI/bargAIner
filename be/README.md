@@ -19,9 +19,18 @@ Create a `.env` file in the `be` directory with the following variables:
 # Get your API key from: https://console.anthropic.com/
 ANTHROPIC_API_KEY=your_api_key_here
 
+# Tavily API Key for Web Search
+# Get your API key from: https://tavily.com/
+TAVILY_API_KEY=your_tavily_api_key_here
+
 # Server Configuration
 PORT=3000
 ```
+
+**Search Configuration** (hardcoded in `agent_loop.ts`, modify if needed):
+- `search_depth: 'basic'` - Optimized for speed (1-2s response)
+- `max_results: 3` - Focused, quick results
+- `include_answer: true` - Tavily provides AI-generated summary
 
 ### Development
 
@@ -95,7 +104,7 @@ Triggers the AI agent loop to analyze a negotiation transcript and provide actio
 The agent uses:
 - **Claude Sonnet 4** via Anthropic API
 - **Knowledge base** tools to read internal contract data
-- **Web search** tool (placeholder) for external market research
+- **Tavily web search** for real-time market research (competitor pricing, commodity trends, news)
 - **Automatic loop control** with max 15 steps for quick responses
 
 The result is stored in `jobStore` and can be retrieved using the counter.

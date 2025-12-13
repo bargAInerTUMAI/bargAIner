@@ -103,14 +103,87 @@ export async function runAgentLoop(counter: number, current_transcript: string):
                 }),
                 execute: async ({ query }) => {
                     console.log(`🌐 [Tool] webSearch called with query: "${query}"`);
-                    // Note: This is a placeholder. In production, integrate with a real web search API
-                    // such as Tavily, Serper, or Bing Search API
-                    console.log(`⚠️ [Tool] Web search not yet implemented (placeholder)`);
-                    return {
-                        query: query,
-                        results: 'Web search not yet implemented. Please use internal data or mock results for now.',
-                        note: 'To enable web search, integrate with a search API like Tavily or Serper'
-                    };
+                    
+                    const apiKey = process.env.TAVILY_API_KEY;
+                    if (!apiKey) {
+                        console.log(`⚠️ [Tool] TAVILY_API_KEY not configured`);
+                        return {
+                            query: query,
+                            error: 'Web search is not configured. Please set TAVILY_API_KEY environment variable.',
+                            results: []
+                        };
+                    }
+
+                    try {
+                        const response = await fetch('https://api.tavily.com/search', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                api_key: apiKey,
+                                query: query,
+                                search_depth: 'basic', // 'basic' for speed, 'advanced' for depth
+                                max_results: 3, // Limit results for faster response
+                                include_answer: true, // Get AI-generated summary
+                                include_raw_content: false, // Skip full content for speed
+                            }),
+                        });
+
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.log(`❌ [Tool] Tavily API error (${response.status}):`, errorText);
+                            return {
+                                query: query,
+                                error: `Search API error: ${response.status}`,
+                                results: []
+                            };
+                        }
+
+                        const data = await response.json() as {
+                            answer?: string;
+                            results?: Array<{
+                                title: string;
+                                url: string;
+                                content: string;
+                                score: number;
+                            }>;
+                        };
+                        
+                        console.log(`✅ [Tool] Tavily search completed: ${data.results?.length || 0} results`);
+                        
+                        if (data.answer) {
+                            console.log(`🤖 [Tavily] AI Answer: ${data.answer}`);
+                        }
+                        
+                        if (data.results && data.results.length > 0) {
+                            console.log(`📋 [Tavily] Search Results:`);
+                            data.results.forEach((result, index) => {
+                                console.log(`   ${index + 1}. ${result.title}`);
+                                console.log(`      URL: ${result.url}`);
+                                console.log(`      Score: ${result.score}`);
+                                console.log(`      Content: ${result.content.substring(0, 150)}...`);
+                            });
+                        }
+                        
+                        return {
+                            query: query,
+                            answer: data.answer || '', // AI-generated summary from Tavily
+                            results: data.results?.map((r) => ({
+                                title: r.title,
+                                url: r.url,
+                                content: r.content,
+                                score: r.score
+                            })) || []
+                        };
+                    } catch (error) {
+                        console.log(`❌ [Tool] Error calling Tavily API:`, error);
+                        return {
+                            query: query,
+                            error: `Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                            results: []
+                        };
+                    }
                 },
             }),
         },
