@@ -5,6 +5,9 @@ import { runAgentLoop, jobStore } from './agent_loop';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+import { runAgentLoop, poll } from './agent_loop';
+
+import { jobStore } from './agent_loop';
 
 // Middleware
 app.use(cors());
@@ -63,4 +66,9 @@ app.get('/agent/result/:counter', (req: Request, res: Response) => {
   }
   
   res.status(200).json({ counter, result });
+});
+
+app.get('/agent/poll', (req: Request, res: Response) => {
+  const result = poll();
+  res.status(200).json({ result });
 });

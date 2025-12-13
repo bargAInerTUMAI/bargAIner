@@ -4,8 +4,8 @@ import { Experimental_Agent as Agent, stepCountIs, tool } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
 
-// map from counter to result
-export const jobStore = new Map<number, string>(); 
+// list of results
+export const jobStore: string[] = []; 
 
 const knowledgeBaseFolder = path.join(__dirname, "knowledge_base");
 
@@ -131,10 +131,13 @@ export async function runAgentLoop(counter: number, current_transcript: string):
         console.log(`💬 [Agent ${counter}] Final response:`, result.text);
 
         // Store the agent's final response
-        jobStore.set(counter, result.text);
+        jobStore.push(result.text);
     } catch (error) {
         console.error(`❌ [Agent ${counter}] Error running agent loop:`, error);
-        jobStore.set(counter, 'Error: Unable to generate negotiation advice. Please try again.');
     }
 }
 
+
+export function poll(): string | undefined {
+    return jobStore.shift();
+}
