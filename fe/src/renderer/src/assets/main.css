@@ -241,6 +241,120 @@ code {
   flex-shrink: 0;
 }
 
+/* Custom scrollbar for response section */
+.response-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.response-section::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.response-section::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.response-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Action items section - wrap-up summary with light blue background */
+.action-items-section {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.15); /* Light blue background */
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  pointer-events: auto;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.action-items-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.action-items-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.action-items-header svg {
+  width: 16px;
+  height: 16px;
+  color: rgba(59, 130, 246, 0.8);
+}
+
+.export-pdf-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(59, 130, 246, 0.4);
+  border: 1px solid rgba(59, 130, 246, 0.6);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.export-pdf-btn:hover {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.export-pdf-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.action-items-content {
+  max-height: 140px;
+  min-height: 0; /* Required for flex child scrolling */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.action-items-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.action-items-content::-webkit-scrollbar-track {
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 3px;
+}
+
+.action-items-content::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.3);
+  border-radius: 3px;
+}
+
+.action-items-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.5);
+}
+
+.action-items-section::-webkit-scrollbar {
+  width: 0;
+  display: none;
+}
+
 /* Markdown styling */
 .markdown-content {
   font-size: 14px;

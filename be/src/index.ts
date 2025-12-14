@@ -32,6 +32,7 @@ app.get('/', (req: Request, res: Response) => {
       health: '/health',
       agentRun: '/agent/run (POST)',
       agentPoll: '/agent/poll (GET)',
+      agentSummarize: '/agent/summarize (POST)',
       agentFeedback: '/agent/feedback (POST)'
     }
   });
@@ -103,6 +104,59 @@ app.get('/agent/poll', (req: Request, res: Response) => {
     console.log("Polled: ", result);
   }
   res.status(200).json({ result });
+});
+
+// Action items summarization endpoint - triggered when wrap-up phrases are detected
+app.post('/agent/summarize', async (req: Request, res: Response) => {
+  try {
+    const { transcripts } = req.body;
+    
+    if (!transcripts || !Array.isArray(transcripts) || transcripts.length === 0) {
+      return res.status(400).json({ 
+        error: 'Missing or empty transcripts array' 
+      });
+    }
+
+    console.log('📋 [Summarize] Generating action items from', transcripts.length, 'transcripts...');
+
+    const summarizePrompt = `You are extracting action items from a procurement negotiation that is wrapping up.
+
+Conversation transcripts:
+${transcripts.map((t, i) => `[${i + 1}] ${t}`).join('\n')}
+
+Extract ONLY explicitly mentioned items. Do NOT infer or assume anything that wasn't said.
+
+Respond with a brief, actionable summary in this exact format:
+
+**Agreed Terms:**
+• [List any prices, terms, or conditions that were agreed upon, or "None explicitly agreed"]
+
+**Open Items:**
+• [List any unresolved questions or items needing follow-up, or "None mentioned"]
+
+**Next Steps:**
+• [List any mentioned follow-up actions with who/what/when if stated, or "None mentioned"]
+
+Be concise. Only include items that were explicitly stated in the conversation.`;
+
+    const result = await generateText({
+      model: cerebras('gpt-oss-120b'),
+      prompt: summarizePrompt,
+    });
+
+    console.log('✅ [Summarize] Action items generated successfully');
+    
+    res.status(200).json({ 
+      actionItems: result.text,
+      transcriptCount: transcripts.length 
+    });
+  } catch (error) {
+    console.error('❌ [Summarize] Error generating action items:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate action items',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // Feedback endpoint - sends conversation to Claude Opus 4.5 for procurement negotiation feedback

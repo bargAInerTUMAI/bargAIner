@@ -11,9 +11,27 @@ export interface TranscriptEvent {
 export interface ElevenLabsWebSocketCallbacks {
   onPartialTranscript?: (text: string) => void
   onCommittedTranscript?: (text: string) => void
+  onWrapUpDetected?: (allTranscripts: string[]) => void
   onError?: (error: Error) => void
   onClose?: () => void
 }
+
+// Wrap-up phrases that indicate meeting is concluding
+const WRAP_UP_PHRASES = [
+  'to summarize',
+  'in summary',
+  'at the end',
+  'in conclusion',
+  'wrapping up',
+  'to conclude',
+  'let me summarize',
+  'final thoughts',
+  'before we end',
+  'to wrap up',
+  'closing thoughts',
+  'to sum up',
+  'in closing'
+]
 
 export class ElevenLabsWebSocket {
   private ws: WebSocket | null = null
@@ -21,6 +39,8 @@ export class ElevenLabsWebSocket {
   private isConnected = false
   private keepaliveInterval: ReturnType<typeof setInterval> | null = null
   private silentChunk: Int16Array | null = null
+  private transcriptHistory: string[] = [] // Store all committed transcripts
+  private wrapUpTriggered = false // Prevent multiple triggers
 
   /**
    * Create a silent audio chunk for keepalive
@@ -136,6 +156,20 @@ export class ElevenLabsWebSocket {
         case 'committed_transcript':
           if (data.text && this.callbacks.onCommittedTranscript) {
             console.log('Committed transcript:', data.text)
+            
+            // Store transcript in history
+            this.transcriptHistory.push(data.text)
+            
+            // Check for wrap-up phrases
+            const lowerText = data.text.toLowerCase()
+            const isWrapUp = WRAP_UP_PHRASES.some(phrase => lowerText.includes(phrase))
+            
+            if (isWrapUp && !this.wrapUpTriggered && this.callbacks.onWrapUpDetected) {
+              console.log('🎯 Wrap-up phrase detected:', data.text)
+              this.wrapUpTriggered = true
+              this.callbacks.onWrapUpDetected([...this.transcriptHistory])
+            }
+            
             // TODO replace hardcoded localhost:3000 with process.env.BACKEND_URL
             const response = await fetch(`http://localhost:3000/agent/run`, {
               method: 'POST',
@@ -246,6 +280,8 @@ export class ElevenLabsWebSocket {
     }
     this.isConnected = false
     this.silentChunk = null
+    this.transcriptHistory = []
+    this.wrapUpTriggered = false
   }
 
   /**
