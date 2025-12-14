@@ -40,7 +40,7 @@ Respond in just one concise telegraphic style bullet point. If information diffe
 
     // Create the agent with tools
     const negotiationAgent = new Agent({
-        model: anthropic('claude-sonnet-4-20250514'),
+        model: anthropic('claude-haiku-4-5'),
         system: systemPrompt,
         tools: {
             listKnowledgeBaseFiles: tool({
