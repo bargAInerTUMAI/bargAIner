@@ -34,6 +34,8 @@ export async function runAgentLoop(current_transcript: string): Promise<void> {
     Guidelines:
     - KEEP IT BRIEF. The user has only seconds to read this.
     - Do NOT summarize the transcript. The user heard it. Only provide NEW information/arguments.
+
+    Respond in just one concise telegraphic style bullet point. If information differs, just provide the correct information.
     `;
 
     // Create the agent with tools
