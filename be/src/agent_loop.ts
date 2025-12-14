@@ -62,7 +62,11 @@ export async function runAgentLoop(current_transcript: string): Promise<void> {
     
     Transcript: "The total is $5m."
     Tool Output: Budget is $3m.
-    Response: • That figure exceeds our authorized project cap of $3m defined in the FY24 budget.`;
+    Response: • That figure exceeds our authorized project cap of $3m defined in the FY24 budget.
+    
+     If you cannot meaningfully follow the insructions just output the exact string "I cannot follow instructions" . NEVER output a "failure message" where you explain why you can't follow instructions.
+    `
+    ;
 
 
     // Create the agent with tools
@@ -227,7 +231,7 @@ export async function runAgentLoop(current_transcript: string): Promise<void> {
         const result = await negotiationAgent.generate({
             messages: [
                 ...messageHistory,
-                { role: 'user', content: `Current transcript from the negotiation:\n\n"${current_transcript}"` }
+                { role: 'user', content: `Current transcript from the negotiation:\n\n"${current_transcript}" The Info you would suggest is:` }
             ],
         });
 
@@ -235,6 +239,10 @@ export async function runAgentLoop(current_transcript: string): Promise<void> {
         console.log(`📊 [Agent ${id}] Steps taken:`, result.steps.length);
         console.log(`💬 [Agent ${id}] Final response:`, result.text);
 
+        if (result.text.includes("I cannot follow instructions")) {
+            console.log(`🗃️ [Agent ${id}] Result not stored because it contains "I cannot follow instructions"`);
+            return;
+        }
         // Store the agent's final response
         jobStore.push(result.text);
         // Append the new user message and assistant response to history (no tool outputs)
