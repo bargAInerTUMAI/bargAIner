@@ -109,7 +109,10 @@ app.post('/agent/feedback', async (req: Request, res: Response) => {
   try {
     console.log('📝 [Feedback] Generating negotiation feedback...');
     
-    if (messageHistory.length === 0) {
+    // Filter out assistant messages - only include the actual conversation transcripts
+    const conversationHistory = messageHistory.filter(m => m.role === 'user');
+    
+    if (conversationHistory.length === 0) {
       return res.status(400).json({ 
         error: 'No conversation history available. Start a negotiation first.' 
       });
@@ -117,10 +120,10 @@ app.post('/agent/feedback', async (req: Request, res: Response) => {
 
     const feedbackPrompt = `You are an expert procurement negotiation coach. Analyze the following negotiation conversation and provide constructive feedback.
 
-The conversation is between a procurement buyer (assisted by an AI copilot) and a vendor. The "user" messages contain vendor statements/transcripts, and the "assistant" messages contain the AI copilot's counter-arguments and insights provided to help the buyer.
+The conversation is between a procurement buyer and a vendor. The "user" messages contain procurement buyer and vendor statements/transcripts. Use context to understand which party is speaking.
 
 Conversation History:
-${messageHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}
+${conversationHistory.map(m => m.content).join('\n\n')}
 
 Please provide feedback on:
 1. **Negotiation Tactics Used**: What tactics did the buyer's AI assistant identify and counter effectively?
@@ -130,7 +133,7 @@ Please provide feedback on:
 5. **Overall Score**: Rate the negotiation performance from 1-10 with justification.
 6. **Key Recommendations**: Top 3 actionable tips for improving future negotiations.
 
-Provide your feedback in a clear, structured format.`;
+Provide your feedback in a clear, structured, but concise format.`;
 
     const result = await generateText({
       model: anthropic('claude-opus-4-5'),
