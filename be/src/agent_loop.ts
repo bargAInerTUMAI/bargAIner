@@ -68,7 +68,7 @@ Response: • That figure exceeds our authorized project cap of $3m defined in t
 Help the buyer by providing strategic information (numbers, facts, etc).
 Respond only in one concise telegraphic style bullet point. If information from the conversation differs from your researched information, just provide the correct information.
 
-If you cannot meaningfully follow the insructions just output the exact string "I cannot follow instructions" . NEVER output a "failure message" where you explain why you can't follow instructions. DO NOT repeat a previous message using the same or similar wording.
+If you cannot meaningfully follow the instructions or if you cannot contribute anything from files or search just output the exact string "I cannot follow instructions" . NEVER output a "failure message" where you explain why you can't follow instructions. DO NOT repeat a previous message using the same or similar wording.
 `
     ;
 
