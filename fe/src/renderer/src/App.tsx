@@ -11,6 +11,8 @@ function App(): React.JSX.Element {
   const [, setPartialTranscript] = useState<string>('')
   const [, setCommittedTranscripts] = useState<string[]>([])
   const [agentMessages, setAgentMessages] = useState<string[]>([])
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const [isLoadingFeedback, setIsLoadingFeedback] = useState<boolean>(false)
   const [position, setPosition] = useState({ x: 0, y: -450 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -212,13 +214,60 @@ function App(): React.JSX.Element {
     }
   }
 
+  const stopAndGetFeedback = async (): Promise<void> => {
+    // Stop listening if currently active
+    if (isListening && audioCaptureRef.current) {
+      await audioCaptureRef.current.stop()
+      if (elevenLabsWsRef.current) {
+        elevenLabsWsRef.current.disconnect()
+        elevenLabsWsRef.current = null
+      }
+      setIsListening(false)
+      elevenLabsTokenRef.current = null
+      setPartialTranscript('')
+    }
+
+    // Fetch feedback from the backend
+    setIsLoadingFeedback(true)
+    setFeedback(null)
+    try {
+      const response = await fetch(`${BACKEND_URL}/agent/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
+      const data = (await response.json()) as { feedback: string; conversationLength: number }
+      setFeedback(data.feedback)
+      console.log('Feedback received:', data)
+    } catch (error) {
+      console.error('Failed to get feedback:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      setFeedback(`Error getting feedback: ${errorMessage}`)
+    } finally {
+      setIsLoadingFeedback(false)
+      // Pre-fetch new token for next session
+      if (!isReady) {
+        prefetchToken()
+      }
+    }
+  }
+
   const handleMouseEnter = (e: React.MouseEvent): void => {
     const target = e.target as HTMLElement
     // Only enable mouse events if hovering over interactive elements
     if (
       target.closest('.audio-toggle-btn') ||
       target.closest('.drag-handle') ||
-      target.closest('.response-section')
+      target.closest('.response-section') ||
+      target.closest('.feedback-btn') ||
+      target.closest('.feedback-section')
     ) {
       window.electron.send('set-ignore-mouse', false)
     } else {
@@ -298,6 +347,55 @@ function App(): React.JSX.Element {
           <div className="response-section">
             <div className="markdown-content">
               <ReactMarkdown>{agentMessages[agentMessages.length - 1]}</ReactMarkdown>
+            </div>
+          </div>
+        )}
+
+        {/* Feedback button - below the drag handle area */}
+        <button
+          className={`feedback-btn ${isLoadingFeedback ? 'loading' : ''}`}
+          onClick={stopAndGetFeedback}
+          disabled={isLoadingFeedback}
+          aria-label="End conversation and get feedback"
+          title="Stop conversation and get AI feedback on your negotiation"
+        >
+          {isLoadingFeedback ? (
+            <>
+              <svg className="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" strokeDasharray="32" strokeDashoffset="12" />
+              </svg>
+              Analyzing...
+            </>
+          ) : (
+            <>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                <path d="M12 7v2" />
+                <path d="M12 13h.01" />
+              </svg>
+              End &amp; Get Feedback
+            </>
+          )}
+        </button>
+
+        {/* Feedback section - shows when feedback is available */}
+        {feedback && (
+          <div className="feedback-section">
+            <div className="feedback-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              <span>Negotiation Feedback</span>
+              <button 
+                className="close-feedback-btn" 
+                onClick={() => setFeedback(null)}
+                aria-label="Close feedback"
+              >
+                ×
+              </button>
+            </div>
+            <div className="feedback-content">
+              <ReactMarkdown>{feedback}</ReactMarkdown>
             </div>
           </div>
         )}
