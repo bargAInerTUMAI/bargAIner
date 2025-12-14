@@ -7,8 +7,8 @@ const BACKEND_URL = 'http://localhost:3000'
 function App(): React.JSX.Element {
   const [isListening, setIsListening] = useState<boolean>(false)
   const [isReady, setIsReady] = useState<boolean>(false)
-  const [partialTranscript, setPartialTranscript] = useState<string>('')
-  const [committedTranscripts, setCommittedTranscripts] = useState<string[]>([])
+  const [, setPartialTranscript] = useState<string>('')
+  const [, setCommittedTranscripts] = useState<string[]>([])
   const [agentMessages, setAgentMessages] = useState<string[]>([])
   const [audioDebug, setAudioDebug] = useState<{
     mic: string
@@ -65,7 +65,7 @@ function App(): React.JSX.Element {
           if (data.result) {
             setAgentMessages((prev) => [...prev, data.result])
           }
-          console.log('Polled agent result:', data.result);
+          console.log('Polled agent result:', data.result)
         }
       } catch (error) {
         console.error('Polling error:', error)
