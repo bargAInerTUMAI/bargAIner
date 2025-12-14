@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, screen } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, screen, desktopCapturer, session } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
@@ -136,6 +136,40 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  // Handle desktop capturer request for system audio
+  ipcMain.handle('get-desktop-sources', async () => {
+    const sources = await desktopCapturer.getSources({
+      types: ['window', 'screen'],
+      thumbnailSize: { width: 0, height: 0 }
+    })
+    return sources.map((source) => ({
+      id: source.id,
+      name: source.name,
+      displayId: source.display_id
+    }))
+  })
+
+  // Set up display media request handler for system audio capture
+  session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+    try {
+      const sources = await desktopCapturer.getSources({ 
+        types: ['screen'],
+        thumbnailSize: { width: 0, height: 0 }
+      })
+      // Use the first screen source for audio capture
+      if (sources.length > 0) {
+        // Pass the DesktopCapturerSource directly (not a plain object)
+        callback({ video: sources[0] as Electron.Video, audio: 'loopback' })
+      } else {
+        console.warn('No screen sources found for system audio capture')
+        callback({})
+      }
+    } catch (error) {
+      console.error('Error getting desktop sources:', error)
+      callback({})
+    }
+  })
 
   createWindow()
 

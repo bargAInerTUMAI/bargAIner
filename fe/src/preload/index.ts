@@ -3,6 +3,8 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 // Custom APIs for renderer
 const api = {
   send: (channel: string, ...args: unknown[]): void => ipcRenderer.send(channel, ...args),
+  invoke: (channel: string, ...args: unknown[]): Promise<unknown> =>
+    ipcRenderer.invoke(channel, ...args),
   on: (channel: string, listener: (...args: unknown[]) => void): void => {
     // Wrap to hide the IpcRendererEvent and forward only the args
     const wrapped = (_event: IpcRendererEvent, ...args: unknown[]): void => listener(...args)

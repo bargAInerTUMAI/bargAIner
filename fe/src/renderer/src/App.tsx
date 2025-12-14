@@ -75,20 +75,22 @@ function App(): React.JSX.Element {
     return () => clearInterval(intervalId)
   }, [])
 
-  const handleAudioData = (data: AudioData, source: 'mic' | 'system'): void => {
+  const handleAudioData = (data: AudioData, source: 'mic' | 'system' | 'mixed'): void => {
     // Calculate audio level for visualization
     const sum = data.buffer.reduce((acc, val) => acc + Math.abs(val), 0)
     const average = sum / data.buffer.length
     const level = Math.round((average / 32768) * 100)
 
     // Update debug info
-    setAudioDebug((prev) => ({
-      ...prev,
-      [source]: `${source === 'mic' ? 'Mic' : 'System'}: ${level}% | ${data.buffer.length} samples`
-    }))
+    if (source === 'mixed') {
+      setAudioDebug((prev) => ({
+        ...prev,
+        mic: `Mixed: ${level}% | ${data.buffer.length} samples`
+      }))
+    }
 
-    // Send audio data to ElevenLabs WebSocket (only mic audio for STT)
-    if (source === 'mic' && elevenLabsWsRef.current?.connected) {
+    // Send mixed audio data to ElevenLabs WebSocket
+    if (source === 'mixed' && elevenLabsWsRef.current?.connected) {
       elevenLabsWsRef.current.sendAudioChunk(data.buffer)
     }
   }
