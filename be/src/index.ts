@@ -133,6 +133,7 @@ Please provide feedback on:
 5. **Overall Score**: Rate the negotiation performance from 1-10 with justification.
 6. **Key Recommendations**: Top 3 actionable tips for improving future negotiations.
 
+Do not use markdown tables for formatting.
 Provide your feedback in a clear, structured, but concise format.`;
 
     const result = await generateText({
