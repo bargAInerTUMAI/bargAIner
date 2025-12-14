@@ -474,3 +474,184 @@ code {
     display: none;
   }
 }
+
+/* Feedback button styling */
+.feedback-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(139, 92, 246, 0.3);
+  background: rgba(139, 92, 246, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+  width: 100%;
+}
+
+.feedback-btn:hover {
+  background: rgba(139, 92, 246, 0.3);
+  border-color: rgba(139, 92, 246, 0.5);
+  transform: translateY(-1px);
+}
+
+.feedback-btn:active {
+  transform: translateY(0);
+}
+
+.feedback-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.feedback-btn:disabled:hover {
+  transform: none;
+}
+
+.feedback-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.feedback-btn.loading {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.feedback-btn .spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Feedback section styling */
+.feedback-section {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  pointer-events: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.feedback-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  font-weight: 600;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.feedback-header svg {
+  width: 16px;
+  height: 16px;
+  color: rgba(139, 92, 246, 0.8);
+}
+
+.feedback-header span {
+  flex: 1;
+}
+
+.close-feedback-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.close-feedback-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.feedback-content {
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.feedback-content h1,
+.feedback-content h2,
+.feedback-content h3,
+.feedback-content h4 {
+  color: rgba(255, 255, 255, 0.95);
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+}
+
+.feedback-content h1 { font-size: 18px; }
+.feedback-content h2 { font-size: 16px; }
+.feedback-content h3 { font-size: 14px; }
+.feedback-content h4 { font-size: 13px; }
+
+.feedback-content p {
+  margin: 8px 0;
+}
+
+.feedback-content ul,
+.feedback-content ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.feedback-content li {
+  margin: 4px 0;
+}
+
+.feedback-content strong {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.feedback-content code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* Custom scrollbar for feedback section */
+.feedback-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.feedback-section::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.feedback-section::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 3px;
+}
+
+.feedback-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}

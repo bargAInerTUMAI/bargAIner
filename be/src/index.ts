@@ -1,13 +1,12 @@
 import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
-import { runAgentLoop, jobStore } from './agent_loop';
+import { runAgentLoop, poll, messageHistory } from './agent_loop';
+import { anthropic } from '@ai-sdk/anthropic';
+import { generateText } from 'ai';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-import { runAgentLoop, poll } from './agent_loop';
-
-import { jobStore } from './agent_loop';
 
 // Middleware
 app.use(cors());
@@ -29,7 +28,10 @@ app.get('/', (req: Request, res: Response) => {
     message: 'BargAIner API',
     version: '1.0.0',
     endpoints: {
-      health: '/health'
+      health: '/health',
+      agentRun: '/agent/run (POST)',
+      agentPoll: '/agent/poll (GET)',
+      agentFeedback: '/agent/feedback (POST)'
     }
   });
 });
@@ -101,3 +103,52 @@ app.get('/agent/poll', (req: Request, res: Response) => {
   }
   res.status(200).json({ result });
 });
+
+// Feedback endpoint - sends conversation to Claude Opus 4.5 for procurement negotiation feedback
+app.post('/agent/feedback', async (req: Request, res: Response) => {
+  try {
+    console.log('📝 [Feedback] Generating negotiation feedback...');
+    
+    if (messageHistory.length === 0) {
+      return res.status(400).json({ 
+        error: 'No conversation history available. Start a negotiation first.' 
+      });
+    }
+
+    const feedbackPrompt = `You are an expert procurement negotiation coach. Analyze the following negotiation conversation and provide constructive feedback.
+
+The conversation is between a procurement buyer (assisted by an AI copilot) and a vendor. The "user" messages contain vendor statements/transcripts, and the "assistant" messages contain the AI copilot's counter-arguments and insights provided to help the buyer.
+
+Conversation History:
+${messageHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n')}
+
+Please provide feedback on:
+1. **Negotiation Tactics Used**: What tactics did the buyer's AI assistant identify and counter effectively?
+2. **Missed Opportunities**: Were there any vendor claims that could have been challenged more effectively?
+3. **Data Utilization**: How well was factual data (market rates, budgets, benchmarks) used to support the buyer's position?
+4. **Communication Style**: Was the tone appropriate for maintaining a professional relationship while being assertive?
+5. **Overall Score**: Rate the negotiation performance from 1-10 with justification.
+6. **Key Recommendations**: Top 3 actionable tips for improving future negotiations.
+
+Provide your feedback in a clear, structured format.`;
+
+    const result = await generateText({
+      model: anthropic('claude-opus-4-5'),
+      prompt: feedbackPrompt,
+    });
+
+    console.log('✅ [Feedback] Feedback generated successfully');
+    
+    res.status(200).json({ 
+      feedback: result.text,
+      conversationLength: messageHistory.length 
+    });
+  } catch (error) {
+    console.error('❌ [Feedback] Error generating feedback:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate feedback',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
