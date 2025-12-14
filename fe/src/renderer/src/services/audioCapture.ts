@@ -16,7 +16,6 @@ export class AudioCapture {
   private mixedProcessor: ScriptProcessorNode | null = null
   private micGainNode: GainNode | null = null
   private systemGainNode: GainNode | null = null
-  private merger: ChannelMergerNode | null = null
   private isCapturing = false
   private onAudioDataCallback:
     | ((data: AudioData, source: 'mic' | 'system' | 'mixed') => void)

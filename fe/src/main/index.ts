@@ -2,26 +2,22 @@ import { app, shell, BrowserWindow, ipcMain, screen, desktopCapturer, session } 
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 
-
 function createWindow(): void {
   console.log('Creating window...')
   const { width } = screen.getPrimaryDisplay().workAreaSize
   console.log('Screen width:', width)
 
-  // Create the browser window.
-  const WIN_W = 420
-  const WIN_H = 120
-  // Build single options object (no platform-specific visuals)
+  // Create the browser window - fullscreen with transparent background
+  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize
   const baseOptions: Electron.BrowserWindowConstructorOptions = {
-    width: WIN_W,
-    height: WIN_H,
-    // center horizontally and sit near the top (under webcam)
-    x: Math.round((width - WIN_W) / 2),
-    y: 10,
+    width: screenWidth,
+    height: screenHeight,
+    x: 0,
+    y: 0,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
-    resizable: true,
+    resizable: false,
     hasShadow: false,
     show: false,
     autoHideMenuBar: true,
@@ -121,67 +117,69 @@ process.on('unhandledRejection', (reason, promise) => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  console.log('App ready, platform:', process.platform, 'arch:', process.arch)
+app
+  .whenReady()
+  .then(() => {
+    console.log('App ready, platform:', process.platform, 'arch:', process.arch)
 
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+    // Set app user model id for windows
+    electronApp.setAppUserModelId('com.electron')
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
-
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
-  // Handle desktop capturer request for system audio
-  ipcMain.handle('get-desktop-sources', async () => {
-    const sources = await desktopCapturer.getSources({
-      types: ['window', 'screen'],
-      thumbnailSize: { width: 0, height: 0 }
+    // Default open or close DevTools by F12 in development
+    // and ignore CommandOrControl + R in production.
+    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+    app.on('browser-window-created', (_, window) => {
+      optimizer.watchWindowShortcuts(window)
     })
-    return sources.map((source) => ({
-      id: source.id,
-      name: source.name,
-      displayId: source.display_id
-    }))
-  })
 
-  // Set up display media request handler for system audio capture
-  session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
-    try {
-      const sources = await desktopCapturer.getSources({ 
-        types: ['screen'],
+    // IPC test
+    ipcMain.on('ping', () => console.log('pong'))
+
+    // Handle desktop capturer request for system audio
+    ipcMain.handle('get-desktop-sources', async () => {
+      const sources = await desktopCapturer.getSources({
+        types: ['window', 'screen'],
         thumbnailSize: { width: 0, height: 0 }
       })
-      // Use the first screen source for audio capture
-      if (sources.length > 0) {
-        // Pass the DesktopCapturerSource directly (not a plain object)
-        callback({ video: sources[0] as Electron.Video, audio: 'loopback' })
-      } else {
-        console.warn('No screen sources found for system audio capture')
+      return sources.map((source) => ({
+        id: source.id,
+        name: source.name,
+        displayId: source.display_id
+      }))
+    })
+
+    // Set up display media request handler for system audio capture
+    session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+      try {
+        const sources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: { width: 0, height: 0 }
+        })
+        // Use the first screen source for audio capture
+        if (sources.length > 0) {
+          // Pass the DesktopCapturerSource directly (not a plain object)
+          callback({ video: sources[0] as Electron.Video, audio: 'loopback' })
+        } else {
+          console.warn('No screen sources found for system audio capture')
+          callback({})
+        }
+      } catch (error) {
+        console.error('Error getting desktop sources:', error)
         callback({})
       }
-    } catch (error) {
-      console.error('Error getting desktop sources:', error)
-      callback({})
-    }
-  })
+    })
 
-  createWindow()
+    createWindow()
 
-  app.on('activate', function () {
-    console.log('App activated')
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    app.on('activate', function () {
+      console.log('App activated')
+      // On macOS it's common to re-create a window in the app when the
+      // dock icon is clicked and there are no other windows open.
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+  }).catch((error) => {
+    console.error('Failed to initialize app:', error)
   })
-}).catch((error) => {
-  console.error('Failed to initialize app:', error)
-})
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits

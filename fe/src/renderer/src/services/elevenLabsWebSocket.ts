@@ -16,7 +16,10 @@ export interface TranscriptEvent {
 export interface ElevenLabsWebSocketCallbacks {
   onPartialTranscript?: (text: string) => void
   onCommittedTranscript?: (text: string) => void
-  onCommittedTranscriptWithTimestamps?: (text: string, words: Array<{ word: string; start: number; end: number }>) => void
+  onCommittedTranscriptWithTimestamps?: (
+    text: string,
+    words: Array<{ word: string; start: number; end: number }>
+  ) => void
   onError?: (error: Error) => void
   onClose?: () => void
 }
@@ -33,7 +36,7 @@ export class ElevenLabsWebSocket {
     // Convert Int16Array to Uint8Array (little-endian)
     const uint8Array = new Uint8Array(pcmData.length * 2)
     const dataView = new DataView(uint8Array.buffer)
-    
+
     for (let i = 0; i < pcmData.length; i++) {
       dataView.setInt16(i * 2, pcmData[i], true) // true = little-endian
     }
@@ -63,7 +66,7 @@ export class ElevenLabsWebSocket {
       token: token,
       commit_strategy: 'vad',
       include_timestamps: 'true',
-      audio_format: 'pcm_16000',
+      audio_format: 'pcm_16000'
     })
 
     const wsUrl = `wss://api.elevenlabs.io/v1/speech-to-text/realtime?${params.toString()}`
@@ -113,7 +116,7 @@ export class ElevenLabsWebSocket {
    * Handle incoming WebSocket messages
    */
   private async handleMessage(data: any): Promise<void> {
-    // Handle different message types
+    // Handle different message typesata
     if (data.message_type) {
       switch (data.message_type) {
         case 'session_started':
@@ -133,11 +136,10 @@ export class ElevenLabsWebSocket {
             const response = await fetch(`http://localhost:3000/agent/run`, {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
               },
-              body: JSON.stringify({ transcript: data.text}),
+              body: JSON.stringify({ transcript: data.text })
             })
-            const backendResponse = await response.json()
             // log response code from backend
             console.log('Backend response code:', response.status)
             this.callbacks.onCommittedTranscript(data.text)
@@ -146,10 +148,7 @@ export class ElevenLabsWebSocket {
 
         case 'committed_transcript_with_timestamps':
           if (data.text && this.callbacks.onCommittedTranscriptWithTimestamps) {
-            this.callbacks.onCommittedTranscriptWithTimestamps(
-              data.text,
-              data.words || []
-            )
+            this.callbacks.onCommittedTranscriptWithTimestamps(data.text, data.words || [])
           }
           break
 
@@ -178,10 +177,7 @@ export class ElevenLabsWebSocket {
 
         case 'committed_transcript_with_timestamps':
           if (data.text && this.callbacks.onCommittedTranscriptWithTimestamps) {
-            this.callbacks.onCommittedTranscriptWithTimestamps(
-              data.text,
-              data.words || []
-            )
+            this.callbacks.onCommittedTranscriptWithTimestamps(data.text, data.words || [])
           }
           break
 
@@ -209,7 +205,7 @@ export class ElevenLabsWebSocket {
         message_type: 'input_audio_chunk',
         audio_base_64: audioBase64,
         commit: false, // VAD will handle commits automatically
-        sample_rate: 16000,
+        sample_rate: 16000
       }
       this.ws.send(JSON.stringify(message))
     } catch (error) {
@@ -236,4 +232,3 @@ export class ElevenLabsWebSocket {
     return this.isConnected && this.ws?.readyState === WebSocket.OPEN
   }
 }
-
