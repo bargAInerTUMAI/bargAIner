@@ -247,6 +247,71 @@ If you cannot meaningfully follow the instructions or if you cannot contribute a
             console.log(`🗃️ [Agent ${id}] Result not stored because it contains "I cannot follow instructions"`);
             return;
         }
+
+
+        // make extra request to oss to compare the result.txt and the latest result from history
+        if (messageHistory.length > 0) {
+            // first get the latest result from history
+            const latestResult = messageHistory[messageHistory.length - 1].content;
+            console.log(`🗃️ [Agent ${id}] Latest result:`, latestResult);
+            const comparisonPrompt = `
+        You are a helpful assistant that compares the latest result from history and the current result.
+        The latest result from history is: ${latestResult}
+        The current result is: ${result.text}
+        If the two results are the same contentwise return the exact string "same".
+        Otherwise return the exact string "different".
+        `;
+            
+            // Call Cerebras API to compare results
+            try {
+                console.log(`🔄 [Agent ${id}] Calling Cerebras API for comparison...`);
+                const apiKey = process.env.CEREBRAS_API_KEY;
+                if (!apiKey) {
+                    console.log(`⚠️ [Agent ${id}] CEREBRAS_API_KEY not configured for comparison`);
+                } else {
+                    const response = await fetch('https://api.cerebras.ai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: 'gpt-oss-120b',
+                            messages: [
+                                { role: 'user', content: comparisonPrompt }
+                            ],
+                            temperature: 0, // Use deterministic output for comparison
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.log(`❌ [Agent ${id}] Cerebras API error (${response.status}):`, errorText);
+                    } else {
+                        const data = await response.json() as {
+                            choices: Array<{
+                                message: {
+                                    content: string;
+                                };
+                            }>;
+                        };
+                        
+                        const comparisonResult = data.choices[0]?.message?.content || '';
+                        console.log(`🔍 [Agent ${id}] Comparison result:`, comparisonResult);
+                        
+                        if (comparisonResult.toLowerCase().includes('same')) {
+                            console.log(`🗃️ [Agent ${id}] Result not stored because it is the same as the latest result in history`);
+                            return;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log(`❌ [Agent ${id}] Error calling Cerebras API for comparison:`, error);
+            }
+        }
+
+        console.log("saving new result to jobStore");
+
         // Store the agent's final response
         jobStore.push(result.text);
         // Append the new user message and assistant response to history (no tool outputs)
