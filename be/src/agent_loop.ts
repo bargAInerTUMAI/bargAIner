@@ -7,6 +7,9 @@ import { z } from 'zod';
 // list of results
 export const jobStore: string[] = []; 
 
+// message history (only actual messages, no tool outputs)
+export const messageHistory: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+
 const knowledgeBaseFolder = path.join(__dirname, "knowledge_base");
 
 /**
@@ -55,7 +58,7 @@ If uncertain, default to:
 
     // Create the agent with tools
     const negotiationAgent = new Agent({
-        model: anthropic('claude-haiku-4-5-20251001'),
+        model: anthropic('claude-haiku-4-5'),
         system: systemPrompt,
         tools: {
             listKnowledgeBaseFiles: tool({
@@ -213,7 +216,10 @@ If uncertain, default to:
         
         // Run the agent with the current transcript
         const result = await negotiationAgent.generate({
-            prompt: `Current transcript from the negotiation:\n\n"${current_transcript}"\n\nProvide 2-3 short, punchy bullet points the Buyer can use right now.`,
+            messages: [
+                ...messageHistory,
+                { role: 'user', content: `Current transcript from the negotiation:\n\n"${current_transcript}"\n\nProvide 2-3 short, punchy bullet points the Buyer can use right now.` }
+            ],
         });
 
         console.log(`✅ [Agent ${id}] Agent completed successfully`);
@@ -222,6 +228,13 @@ If uncertain, default to:
 
         // Store the agent's final response
         jobStore.push(result.text);
+        // Append the new user message and assistant response to history (no tool outputs)
+        messageHistory.push({ role: 'user', content: current_transcript });
+        if (result.text) {
+            messageHistory.push({ role: 'assistant', content: result.text });
+        }
+        console.log(`🗃️ New Message History: ${JSON.stringify(messageHistory)}`);
+
         console.log(`🗃️ [Agent ${id}] Result stored. Current jobStore length: ${jobStore}`);
     } catch (error) {
         console.error(`❌ [Agent ${id}] Error running agent loop:`, error);
