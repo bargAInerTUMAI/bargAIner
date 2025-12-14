@@ -85,9 +85,10 @@ export class ElevenLabsWebSocket {
     const params = new URLSearchParams({
       model_id: 'scribe_v2_realtime',
       token: token,
+      language_code: 'en',
       commit_strategy: 'vad',
       audio_format: 'pcm_16000',
-      vad_silence_threshold_secs: '1.5' // Commit after 0.3 seconds of silence (faster response)
+      vad_silence_threshold_secs: '1.5'
     })
 
     const wsUrl = `wss://api.elevenlabs.io/v1/speech-to-text/realtime?${params.toString()}`
