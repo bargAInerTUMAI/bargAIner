@@ -3,6 +3,7 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { runAgentLoop, poll, messageHistory } from './agent_loop';
 import { anthropic } from '@ai-sdk/anthropic';
+import { cerebras } from '@ai-sdk/cerebras';
 import { generateText } from 'ai';
 
 const app = express();
@@ -137,7 +138,7 @@ Do not use markdown tables for formatting.
 Provide your feedback in a clear, structured, but concise format.`;
 
     const result = await generateText({
-      model: anthropic('claude-opus-4-5'),
+      model: cerebras('gpt-oss-120b'),
       prompt: feedbackPrompt,
     });
 
