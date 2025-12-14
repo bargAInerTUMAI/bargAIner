@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { AudioCapture, AudioData } from './services/audioCapture'
 import { ElevenLabsWebSocket } from './services/elevenLabsWebSocket'
 
@@ -10,13 +11,10 @@ function App(): React.JSX.Element {
   const [, setPartialTranscript] = useState<string>('')
   const [, setCommittedTranscripts] = useState<string[]>([])
   const [agentMessages, setAgentMessages] = useState<string[]>([])
-  const [audioDebug, setAudioDebug] = useState<{
-    mic: string
-    system: string
-  }>({
-    mic: 'No mic data',
-    system: 'No system data'
-  })
+  const [position, setPosition] = useState({ x: 0, y: -450 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const cardRef = useRef<HTMLDivElement>(null)
   const audioCaptureRef = useRef<AudioCapture | null>(null)
   const elevenLabsTokenRef = useRef<string | null>(null)
   const elevenLabsWsRef = useRef<ElevenLabsWebSocket | null>(null)
@@ -55,6 +53,39 @@ function App(): React.JSX.Element {
     }
   }, [])
 
+  // Handle dragging
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent): void => {
+      if (isDragging) {
+        const newX = e.clientX - dragStart.x
+        const newY = e.clientY - dragStart.y
+
+        // Prevent dragging above the screen (minimum y is 0 so drag handle stays visible)
+        const minY = -450
+        const constrainedY = Math.max(minY, newY)
+
+        setPosition({
+          x: newX,
+          y: constrainedY
+        })
+      }
+    }
+
+    const handleMouseUp = (): void => {
+      setIsDragging(false)
+    }
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, dragStart])
+
   // Poll for agent messages
   useEffect(() => {
     const intervalId = setInterval(async () => {
@@ -76,19 +107,6 @@ function App(): React.JSX.Element {
   }, [])
 
   const handleAudioData = (data: AudioData, source: 'mic' | 'system' | 'mixed'): void => {
-    // Calculate audio level for visualization
-    const sum = data.buffer.reduce((acc, val) => acc + Math.abs(val), 0)
-    const average = sum / data.buffer.length
-    const level = Math.round((average / 32768) * 100)
-
-    // Update debug info
-    if (source === 'mixed') {
-      setAudioDebug((prev) => ({
-        ...prev,
-        mic: `Mixed: ${level}% | ${data.buffer.length} samples`
-      }))
-    }
-
     // Send mixed audio data to ElevenLabs WebSocket
     if (source === 'mixed' && elevenLabsWsRef.current?.connected) {
       elevenLabsWsRef.current.sendAudioChunk(data.buffer)
@@ -141,7 +159,6 @@ function App(): React.JSX.Element {
       setIsListening(false)
       elevenLabsTokenRef.current = null
       setPartialTranscript('')
-      setAudioDebug({ mic: 'Stopped', system: 'Stopped' })
       // Pre-fetch new token for next use (tokens are single-use)
       setIsReady(false)
       prefetchToken()
@@ -200,59 +217,95 @@ function App(): React.JSX.Element {
     }
   }
 
-  const handleMouseEnter = (): void => {
-    window.electron.send('set-ignore-mouse', false)
+  const handleMouseEnter = (e: React.MouseEvent): void => {
+    const target = e.target as HTMLElement
+    // Only enable mouse events if hovering over interactive elements
+    if (
+      target.closest('.audio-toggle-btn') ||
+      target.closest('.drag-handle') ||
+      target.closest('.response-section')
+    ) {
+      window.electron.send('set-ignore-mouse', false)
+    } else {
+      window.electron.send('set-ignore-mouse', true)
+    }
   }
 
   const handleMouseLeave = (): void => {
     window.electron.send('set-ignore-mouse', true)
   }
 
+  const handleDragStart = (e: React.MouseEvent): void => {
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    })
+    setIsDragging(true)
+  }
+
   return (
     <div className="app-root">
       <div
+        ref={cardRef}
         className="assistant-card"
+        style={{
+          transform: `translate(${position.x}px, ${position.y}px)`
+        }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         role="dialog"
         aria-label="Sales Assistant"
       >
-        <div className="assistant-body">
-          <div className="suggestion-text">
-            {agentMessages.length > 0 ? (
-              <div style={{ whiteSpace: 'pre-wrap' }}>
-                {agentMessages[agentMessages.length - 1]}
-              </div>
-            ) : isListening ? (
-              'Listening...'
-            ) : !isReady ? (
-              'Initializing...'
-            ) : (
-              'Click the mic to start recording'
-            )}
+        {/* Drag handle at top right */}
+        <div className="drag-handle" onMouseDown={handleDragStart} aria-label="Drag to move" />
+
+        {/* Top control bar - single line */}
+        <div className="control-bar">
+          <button
+            className={`audio-toggle-btn ${isListening ? 'listening' : ''} ${!isReady && !isListening ? 'loading' : ''}`}
+            onClick={toggleListening}
+            disabled={!isReady && !isListening}
+            aria-label={isListening ? 'Stop listening' : 'Start listening'}
+            title={
+              !isReady && !isListening
+                ? 'Initializing...'
+                : isListening
+                  ? 'Stop audio capture'
+                  : 'Start audio capture'
+            }
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {isListening ? (
+                <>
+                  <rect x="6" y="4" width="4" height="16" />
+                  <rect x="14" y="4" width="4" height="16" />
+                </>
+              ) : (
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8" />
+              )}
+            </svg>
+          </button>
+
+          <div className="assistant-body">
+            {isListening ? 'Listening...' : !isReady ? 'Initializing...' : 'Click the mic to start'}
           </div>
-          {isListening && (
-            <div className="audio-debug">
-              <div className="audio-source">{audioDebug.mic}</div>
-              <div className="audio-source">{audioDebug.system}</div>
-            </div>
-          )}
         </div>
-        <button
-          className={`audio-toggle-btn ${isListening ? 'listening' : ''} ${!isReady && !isListening ? 'loading' : ''}`}
-          onClick={toggleListening}
-          disabled={!isReady && !isListening}
-          aria-label={isListening ? 'Stop listening' : 'Start listening'}
-          title={
-            !isReady && !isListening
-              ? 'Initializing...'
-              : isListening
-                ? 'Stop audio capture'
-                : 'Start audio capture'
-          }
-        >
-          {isListening ? '⏸' : '🎤'}
-        </button>
+
+        {/* Response section - expands when there are messages */}
+        {agentMessages.length > 0 && (
+          <div className="response-section">
+            <div className="markdown-content">
+              <ReactMarkdown>{agentMessages[agentMessages.length - 1]}</ReactMarkdown>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -7,6 +7,9 @@ import { z } from 'zod';
 // list of results
 export const jobStore: string[] = []; 
 
+// message history (only actual messages, no tool outputs)
+export const messageHistory: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+
 const knowledgeBaseFolder = path.join(__dirname, "knowledge_base");
 
 /**
@@ -64,7 +67,7 @@ export async function runAgentLoop(current_transcript: string): Promise<void> {
 
     // Create the agent with tools
     const negotiationAgent = new Agent({
-        model: anthropic('claude-haiku-4-5-20251001'),
+        model: anthropic('claude-haiku-4-5'),
         system: systemPrompt,
         tools: {
             listKnowledgeBaseFiles: tool({
@@ -222,7 +225,10 @@ export async function runAgentLoop(current_transcript: string): Promise<void> {
         
         // Run the agent with the current transcript
         const result = await negotiationAgent.generate({
-            prompt: `Current transcript from the negotiation:\n\n"${current_transcript}"\n\n. Your single bullet point is:`,
+            messages: [
+                ...messageHistory,
+                { role: 'user', content: `Current transcript from the negotiation:\n\n"${current_transcript}"` }
+            ],
         });
 
         console.log(`✅ [Agent ${id}] Agent completed successfully`);
@@ -231,6 +237,13 @@ export async function runAgentLoop(current_transcript: string): Promise<void> {
 
         // Store the agent's final response
         jobStore.push(result.text);
+        // Append the new user message and assistant response to history (no tool outputs)
+        messageHistory.push({ role: 'user', content: current_transcript });
+        if (result.text) {
+            messageHistory.push({ role: 'assistant', content: result.text });
+        }
+        console.log(`🗃️ New Message History: ${JSON.stringify(messageHistory)}`);
+
         console.log(`🗃️ [Agent ${id}] Result stored. Current jobStore length: ${jobStore}`);
     } catch (error) {
         console.error(`❌ [Agent ${id}] Error running agent loop:`, error);

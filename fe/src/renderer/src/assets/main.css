@@ -2,9 +2,9 @@
 @import './base.css';
 
 body {
-  /* Keep the window transparent; render content with CSS glass effect */
+  /* Fullscreen transparent background with card at top center */
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   overflow: hidden;
   background: transparent;
@@ -31,7 +31,7 @@ code {
 
 #root {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   flex-direction: column;
   width: 100%;
@@ -41,9 +41,8 @@ code {
 /* App root that keeps the window area centered and click-through by default */
 .app-root {
   width: 100%;
-  height: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   pointer-events: none;
   /* make entire window click-through except card */
@@ -51,29 +50,77 @@ code {
 
 /* Frosty assistant card styling (pure CSS) */
 .assistant-card {
-  pointer-events: auto;
-  /* capture events when hovered/clicked */
-  position: relative;
-  width: 380px;
-  height: 120px; /* Fixed height */
-  padding: 18px 20px;
-  border-radius: 14px;
-  background: rgba(20, 26, 35, 0.72);
+  pointer-events: none;
+  position: absolute;
+  top: 520px;
+  width: 500px;
+  min-height: 50px;
+  max-width: 90vw;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(20, 26, 35, 0.85);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 6px;
+  gap: 0;
   text-align: left;
-  overflow: hidden;
+  overflow: visible;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transform-origin: top center;
 }
 
 .assistant-card:hover {
-  /* background: rgba(18, 24, 32, 0.86); */
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Drag handle at top right corner */
+.drag-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  border-radius: 0 12px 0 0;
+  transition: background-color 0.2s ease;
+  pointer-events: auto;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.drag-handle::before {
+  content: '⋮⋮';
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: -2px;
+  transform: rotate(90deg);
+}
+
+.drag-handle:hover::before {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Top control bar - single line with mic on left */
+.control-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  padding-right: 32px;
+  pointer-events: none;
 }
 
 .assistant-header h2 {
@@ -84,35 +131,15 @@ code {
 }
 
 .assistant-body {
-  font-size: 15px;
+  font-size: 14px;
   color: rgba(255, 255, 255, 0.9);
-  line-height: 1.4;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  line-height: 1.5;
   flex: 1;
-  overflow: hidden;
-  padding-right: 50px; /* Space for the button */
+  display: flex;
+  align-items: center;
+  min-height: 26px;
 }
 
-/* Custom scrollbar for the transcript area */
-.assistant-body::-webkit-scrollbar {
-  width: 6px;
-}
-
-.assistant-body::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-}
-
-.assistant-body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
-}
-
-.assistant-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
 
 .suggestion-text {
   font-size: 15px;
@@ -138,30 +165,25 @@ code {
 }
 
 .audio-toggle-btn {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  transform: translateY(-50%);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  background: rgba(59, 130, 246, 0.2);
   color: white;
-  font-size: 20px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   outline: none;
-  z-index: 10;
+  pointer-events: auto;
 }
 
 .audio-toggle-btn:hover {
-  background: rgba(59, 130, 246, 1);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(59, 130, 246, 0.4);
+  border-color: rgba(255, 255, 255, 0.3);
   transform: scale(1.05);
 }
 
@@ -169,29 +191,141 @@ code {
   transform: scale(0.95);
 }
 
+.audio-toggle-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .audio-toggle-btn.listening {
-  /* background: rgba(239, 68, 68, 0.8); */
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.5);
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .audio-toggle-btn.listening:hover {
-  background: rgba(239, 68, 68, 1);
-  border-color: rgba(255, 255, 255, 0.4);
-
+  background: rgba(239, 68, 68, 0.5);
+  border-color: rgba(239, 68, 68, 0.7);
 }
 
 .audio-toggle-btn.loading {
-  background: rgba(100, 100, 100, 0.6);
+  background: rgba(100, 100, 100, 0.3);
   cursor: not-allowed;
 }
 
 .audio-toggle-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .audio-toggle-btn:disabled:hover {
   transform: none;
+}
+
+/* Response section below control bar */
+.response-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  /* max-height: calc(100vh - 200px); */ /* need to think on fit logic */
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
+/* Custom scrollbar for response section */
+.response-section::-webkit-scrollbar {
+  width: 6px;
+}
+
+.response-section::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.response-section::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.response-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Markdown styling */
+.markdown-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  color: rgba(255, 255, 255, 0.95);
+  margin: 12px 0 8px 0;
+  font-weight: 600;
+}
+
+.markdown-content h1 {
+  font-size: 20px;
+}
+
+.markdown-content h2 {
+  font-size: 18px;
+}
+
+.markdown-content h3 {
+  font-size: 16px;
+}
+
+.markdown-content p {
+  margin: 8px 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+
+.markdown-content li {
+  margin: 4px 0;
+}
+
+.markdown-content code {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+
+.markdown-content pre {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.markdown-content pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+  padding-left: 12px;
+  margin: 8px 0;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.markdown-content a {
+  color: rgba(96, 165, 250, 1);
+  text-decoration: none;
+}
+
+.markdown-content a:hover {
+  text-decoration: underline;
 }
 
 @keyframes pulse {
