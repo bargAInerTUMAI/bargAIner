@@ -186,11 +186,6 @@ function App(): React.JSX.Element {
             setCommittedTranscripts((prev) => [...prev, text])
             setPartialTranscript('') // Clear partial when committed
           },
-          onCommittedTranscriptWithTimestamps: (text, words) => {
-            console.log('Committed transcript with timestamps:', text, words)
-            setCommittedTranscripts((prev) => [...prev, text])
-            setPartialTranscript('')
-          },
           onError: (error) => {
             console.error('ElevenLabs WebSocket error:', error)
             alert(`ElevenLabs WebSocket error: ${error.message}`)

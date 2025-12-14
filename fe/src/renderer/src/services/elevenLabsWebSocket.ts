@@ -4,22 +4,13 @@
  */
 
 export interface TranscriptEvent {
-  type: 'partial_transcript' | 'committed_transcript' | 'committed_transcript_with_timestamps'
+  type: 'partial_transcript' | 'committed_transcript'
   text: string
-  words?: Array<{
-    word: string
-    start: number
-    end: number
-  }>
 }
 
 export interface ElevenLabsWebSocketCallbacks {
   onPartialTranscript?: (text: string) => void
   onCommittedTranscript?: (text: string) => void
-  onCommittedTranscriptWithTimestamps?: (
-    text: string,
-    words: Array<{ word: string; start: number; end: number }>
-  ) => void
   onError?: (error: Error) => void
   onClose?: () => void
 }
@@ -65,8 +56,8 @@ export class ElevenLabsWebSocket {
       model_id: 'scribe_v2_realtime',
       token: token,
       commit_strategy: 'vad',
-      include_timestamps: 'true',
-      audio_format: 'pcm_16000'
+      audio_format: 'pcm_16000',
+      vad_silence_threshold_secs: '0.3' // Commit after 0.3 seconds of silence (faster response)
     })
 
     const wsUrl = `wss://api.elevenlabs.io/v1/speech-to-text/realtime?${params.toString()}`
@@ -146,12 +137,6 @@ export class ElevenLabsWebSocket {
           }
           break
 
-        case 'committed_transcript_with_timestamps':
-          if (data.text && this.callbacks.onCommittedTranscriptWithTimestamps) {
-            this.callbacks.onCommittedTranscriptWithTimestamps(data.text, data.words || [])
-          }
-          break
-
         case 'input_error':
           console.error('ElevenLabs input error:', data.error)
           this.callbacks.onError?.(new Error(data.error || 'Input error'))
@@ -172,12 +157,6 @@ export class ElevenLabsWebSocket {
         case 'committed_transcript':
           if (data.text && this.callbacks.onCommittedTranscript) {
             this.callbacks.onCommittedTranscript(data.text)
-          }
-          break
-
-        case 'committed_transcript_with_timestamps':
-          if (data.text && this.callbacks.onCommittedTranscriptWithTimestamps) {
-            this.callbacks.onCommittedTranscriptWithTimestamps(data.text, data.words || [])
           }
           break
 
