@@ -19,6 +19,16 @@ export class ElevenLabsWebSocket {
   private ws: WebSocket | null = null
   private callbacks: ElevenLabsWebSocketCallbacks = {}
   private isConnected = false
+  private keepaliveInterval: ReturnType<typeof setInterval> | null = null
+  private silentChunk: Int16Array | null = null
+
+  /**
+   * Create a silent audio chunk for keepalive
+   */
+  private createSilentChunk(): Int16Array {
+    // Create 100ms of silence at 16kHz (1600 samples)
+    return new Int16Array(1600).fill(0)
+  }
 
   /**
    * Convert PCM Int16Array to base64 string
@@ -70,6 +80,7 @@ export class ElevenLabsWebSocket {
         this.ws.onopen = () => {
           console.log('ElevenLabs WebSocket connected')
           this.isConnected = true
+          this.startKeepalive()
           resolve()
         }
 
@@ -91,8 +102,10 @@ export class ElevenLabsWebSocket {
 
         this.ws.onclose = (event) => {
           console.log('WebSocket closed:', event.code, event.reason)
+          this.stopKeepalive()
           this.isConnected = false
           this.ws = null
+          this.silentChunk = null
           this.callbacks.onClose?.()
         }
       } catch (error) {
@@ -169,6 +182,35 @@ export class ElevenLabsWebSocket {
   }
 
   /**
+   * Start sending keepalive silent audio chunks every 5 seconds
+   */
+  private startKeepalive(): void {
+    // Clear any existing interval
+    this.stopKeepalive()
+
+    // Create silent chunk once
+    this.silentChunk = this.createSilentChunk()
+
+    // Send silent audio every 5 seconds to keep connection alive
+    this.keepaliveInterval = setInterval(() => {
+      if (this.isConnected && this.ws?.readyState === WebSocket.OPEN) {
+        console.log('Sending keepalive silent chunk')
+        this.sendAudioChunk(this.silentChunk!)
+      }
+    }, 5000) // Every 5 seconds
+  }
+
+  /**
+   * Stop sending keepalive chunks
+   */
+  private stopKeepalive(): void {
+    if (this.keepaliveInterval) {
+      clearInterval(this.keepaliveInterval)
+      this.keepaliveInterval = null
+    }
+  }
+
+  /**
    * Send audio chunk to ElevenLabs
    */
   sendAudioChunk(pcmData: Int16Array): void {
@@ -197,11 +239,13 @@ export class ElevenLabsWebSocket {
    * Disconnect from WebSocket
    */
   disconnect(): void {
+    this.stopKeepalive()
     if (this.ws) {
       this.ws.close()
       this.ws = null
     }
     this.isConnected = false
+    this.silentChunk = null
   }
 
   /**

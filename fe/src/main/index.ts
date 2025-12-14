@@ -89,7 +89,7 @@ function createWindow(): void {
     })
   }
 
-  // Open DevTools in development
+  // Open DevTools in development - commented out to prevent auto-opening
   if (is.dev) {
     console.log('Opening DevTools...')
     mainWindow.webContents.openDevTools({ mode: 'detach' })

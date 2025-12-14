@@ -7,6 +7,7 @@ const BACKEND_URL = 'http://localhost:3000'
 
 function App(): React.JSX.Element {
   const [isListening, setIsListening] = useState<boolean>(false)
+  const [isPaused, setIsPaused] = useState<boolean>(false)
   const [isReady, setIsReady] = useState<boolean>(false)
   const [, setPartialTranscript] = useState<string>('')
   const [, setCommittedTranscripts] = useState<string[]>([])
@@ -108,10 +109,19 @@ function App(): React.JSX.Element {
     return () => clearInterval(intervalId)
   }, [])
 
+  const isPausedRef = useRef<boolean>(false)
+
+  useEffect(() => {
+    isPausedRef.current = isPaused
+    console.log('isPausedRef updated to:', isPaused)
+  }, [isPaused])
+
   const handleAudioData = (data: AudioData, source: 'mic' | 'system' | 'mixed'): void => {
-    // Send mixed audio data to ElevenLabs WebSocket
+    // Send mixed audio data to ElevenLabs WebSocket only if not paused
     if (source === 'mixed' && elevenLabsWsRef.current?.connected) {
-      elevenLabsWsRef.current.sendAudioChunk(data.buffer)
+      if (!isPausedRef.current) {
+        elevenLabsWsRef.current.sendAudioChunk(data.buffer)
+      }
     }
   }
 
@@ -152,18 +162,10 @@ function App(): React.JSX.Element {
     if (!audioCaptureRef.current) return
 
     if (isListening) {
-      // Stop listening
-      await audioCaptureRef.current.stop()
-      if (elevenLabsWsRef.current) {
-        elevenLabsWsRef.current.disconnect()
-        elevenLabsWsRef.current = null
-      }
-      setIsListening(false)
-      elevenLabsTokenRef.current = null
-      setPartialTranscript('')
-      // Pre-fetch new token for next use (tokens are single-use)
-      setIsReady(false)
-      prefetchToken()
+      // Just pause/unpause - don't stop the connection
+      const newPausedState = !isPaused
+      console.log('Toggling pause state from', isPaused, 'to', newPausedState)
+      setIsPaused(newPausedState)
     } else {
       // Start listening - use pre-fetched token
       if (!elevenLabsTokenRef.current) {
@@ -200,6 +202,7 @@ function App(): React.JSX.Element {
         // Start audio capture
         await audioCaptureRef.current.start(handleAudioData)
         setIsListening(true)
+        setIsPaused(false)
       } catch (error) {
         console.error('Failed to start audio capture:', error)
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
@@ -306,15 +309,19 @@ function App(): React.JSX.Element {
         {/* Top control bar - single line */}
         <div className="control-bar">
           <button
-            className={`audio-toggle-btn ${isListening ? 'listening' : ''} ${!isReady && !isListening ? 'loading' : ''}`}
+            className={`audio-toggle-btn ${isListening && !isPaused ? 'listening' : ''} ${!isReady && !isListening ? 'loading' : ''} ${isPaused ? 'paused' : ''}`}
             onClick={toggleListening}
             disabled={!isReady && !isListening}
-            aria-label={isListening ? 'Stop listening' : 'Start listening'}
+            aria-label={
+              isListening ? (isPaused ? 'Resume listening' : 'Pause listening') : 'Start listening'
+            }
             title={
               !isReady && !isListening
                 ? 'Initializing...'
                 : isListening
-                  ? 'Stop audio capture'
+                  ? isPaused
+                    ? 'Resume audio capture'
+                    : 'Pause audio capture'
                   : 'Start audio capture'
             }
           >
@@ -327,10 +334,14 @@ function App(): React.JSX.Element {
               strokeLinejoin="round"
             >
               {isListening ? (
-                <>
-                  <rect x="6" y="4" width="4" height="16" />
-                  <rect x="14" y="4" width="4" height="16" />
-                </>
+                isPaused ? (
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8" />
+                ) : (
+                  <>
+                    <rect x="6" y="4" width="4" height="16" />
+                    <rect x="14" y="4" width="4" height="16" />
+                  </>
+                )
               ) : (
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8" />
               )}
@@ -338,7 +349,13 @@ function App(): React.JSX.Element {
           </button>
 
           <div className="assistant-body">
-            {isListening ? 'Listening...' : !isReady ? 'Initializing...' : 'Click the mic to start'}
+            {isListening
+              ? isPaused
+                ? 'Paused'
+                : 'Listening...'
+              : !isReady
+                ? 'Initializing...'
+                : 'Click the mic to start'}
           </div>
         </div>
 
