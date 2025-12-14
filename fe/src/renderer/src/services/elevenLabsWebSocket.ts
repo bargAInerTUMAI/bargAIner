@@ -57,7 +57,7 @@ export class ElevenLabsWebSocket {
       token: token,
       commit_strategy: 'vad',
       audio_format: 'pcm_16000',
-      vad_silence_threshold_secs: '0.3' // Commit after 0.3 seconds of silence (faster response)
+      vad_silence_threshold_secs: '1.5' // Commit after 0.3 seconds of silence (faster response)
     })
 
     const wsUrl = `wss://api.elevenlabs.io/v1/speech-to-text/realtime?${params.toString()}`
