@@ -1,1 +1,0 @@
-In 2024 we procured a software migration from on prem to AWS for 250.000$
