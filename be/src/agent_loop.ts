@@ -8,6 +8,7 @@ import { z } from 'zod';
 export const jobStore: string[] = []; 
 
 // message history (only actual messages, no tool outputs)
+// Prefixed with USER: (buyer's mic) or VENDOR: (meeting/system audio)
 export const messageHistory: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
 
 const knowledgeBaseFolder = path.join(__dirname, "knowledge_base");

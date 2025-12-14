@@ -110,6 +110,9 @@ export class AudioCapture {
     }
   }
 
+  private micProcessor: ScriptProcessorNode | null = null
+  private systemProcessor: ScriptProcessorNode | null = null
+
   private setupAudioProcessing(): void {
     const ctx = this.audioContext!
     const mixRatio = this.config.mixRatio ?? 0.7
@@ -129,7 +132,25 @@ export class AudioCapture {
     // Connect mic to mixer
     this.micGainNode.connect(mixerNode)
 
-    // If we have system audio, add it to the mix
+    // Create separate processor for mic audio
+    this.micProcessor = ctx.createScriptProcessor(4096, 1, 1)
+    this.micProcessor.onaudioprocess = (e) => {
+      if (this.onAudioDataCallback) {
+        const inputData = e.inputBuffer.getChannelData(0)
+        const pcmData = this.convertToPCM16(inputData)
+        this.onAudioDataCallback(
+          {
+            buffer: pcmData,
+            timestamp: Date.now()
+          },
+          'mic'
+        )
+      }
+    }
+    this.micGainNode.connect(this.micProcessor)
+    this.micProcessor.connect(ctx.destination)
+
+    // If we have system audio, add it to the mix and create separate processor
     if (this.systemStream) {
       this.systemGainNode = ctx.createGain()
       this.systemGainNode.gain.value = mixRatio // Adjustable system audio level
@@ -137,6 +158,24 @@ export class AudioCapture {
       const systemSource = ctx.createMediaStreamSource(this.systemStream)
       systemSource.connect(this.systemGainNode)
       this.systemGainNode.connect(mixerNode)
+
+      // Create separate processor for system audio
+      this.systemProcessor = ctx.createScriptProcessor(4096, 1, 1)
+      this.systemProcessor.onaudioprocess = (e) => {
+        if (this.onAudioDataCallback) {
+          const inputData = e.inputBuffer.getChannelData(0)
+          const pcmData = this.convertToPCM16(inputData)
+          this.onAudioDataCallback(
+            {
+              buffer: pcmData,
+              timestamp: Date.now()
+            },
+            'system'
+          )
+        }
+      }
+      this.systemGainNode.connect(this.systemProcessor)
+      this.systemProcessor.connect(ctx.destination)
     }
 
     // Create processor for the mixed output
@@ -199,11 +238,23 @@ export class AudioCapture {
   async stop(): Promise<void> {
     this.isCapturing = false
 
-    // Stop processor
+    // Stop processors
     if (this.mixedProcessor) {
       this.mixedProcessor.disconnect()
       this.mixedProcessor.onaudioprocess = null
       this.mixedProcessor = null
+    }
+
+    if (this.micProcessor) {
+      this.micProcessor.disconnect()
+      this.micProcessor.onaudioprocess = null
+      this.micProcessor = null
+    }
+
+    if (this.systemProcessor) {
+      this.systemProcessor.disconnect()
+      this.systemProcessor.onaudioprocess = null
+      this.systemProcessor = null
     }
 
     // Disconnect gain nodes

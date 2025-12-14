@@ -84,17 +84,33 @@ app.listen(PORT, () => {
 
 
 app.post('/agent/run', async (req: Request, res: Response) => {
-  const { transcript } = req.body;
+  const { transcript, source } = req.body;
 
   // log that we received the request
-  console.log('Received request to run agent loop:', req.body)
+  console.log(`Received request from source '${source || 'unknown'}':`, transcript?.substring(0, 100))
   
   if (!transcript) {
     return res.status(400).json({ error: 'Missing required fields: transcript' });
   }
-  
-  runAgentLoop(transcript);
-  res.status(200).json({ message: 'Agent loop started' });
+
+  // Route based on audio source
+  if (source === 'mic') {
+    // User's own speech - store with USER: prefix but don't trigger agent loop
+    messageHistory.push({
+      role: 'user',
+      content: `USER: ${transcript}`
+    });
+    console.log(`📝 [User] Stored user transcript (${messageHistory.length} total messages)`);
+    res.status(200).json({ message: 'User transcript stored' });
+  } else {
+    // System audio (meeting/vendor) - store with VENDOR: prefix and trigger agent loop
+    messageHistory.push({
+      role: 'user',
+      content: `VENDOR: ${transcript}`
+    });
+    runAgentLoop(transcript);
+    res.status(200).json({ message: 'Agent loop started' });
+  }
 });
 
 app.get('/agent/poll', (req: Request, res: Response) => {
@@ -110,7 +126,7 @@ app.post('/agent/feedback', async (req: Request, res: Response) => {
   try {
     console.log('📝 [Feedback] Generating negotiation feedback...');
     
-    // Filter out assistant messages - only include the actual conversation transcripts
+    // Get all conversation transcripts (USER: and VENDOR: prefixed)
     const conversationHistory = messageHistory.filter(m => m.role === 'user');
     
     if (conversationHistory.length === 0) {
@@ -121,7 +137,9 @@ app.post('/agent/feedback', async (req: Request, res: Response) => {
 
     const feedbackPrompt = `You are an expert procurement negotiation coach. Analyze the following negotiation conversation and provide constructive feedback.
 
-The conversation is between a procurement buyer and a vendor. The "user" messages contain procurement buyer and vendor statements/transcripts. Use context to understand which party is speaking.
+The conversation includes two speakers:
+- **USER**: The procurement buyer (your client) - these are their actual statements
+- **VENDOR**: The vendor/seller they are negotiating with
 
 Conversation History:
 ${conversationHistory.map(m => m.content).join('\n\n')}

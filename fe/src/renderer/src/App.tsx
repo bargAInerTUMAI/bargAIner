@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { AudioCapture, AudioData } from './services/audioCapture'
-import { ElevenLabsWebSocket } from './services/elevenLabsWebSocket'
+import { ElevenLabsWebSocket, AudioSource } from './services/elevenLabsWebSocket'
 
 const BACKEND_URL = 'http://localhost:3000'
+
+interface TokenPair {
+  mic: string | null
+  system: string | null
+}
 
 function App(): React.JSX.Element {
   const [isListening, setIsListening] = useState<boolean>(false)
@@ -19,20 +24,26 @@ function App(): React.JSX.Element {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const cardRef = useRef<HTMLDivElement>(null)
   const audioCaptureRef = useRef<AudioCapture | null>(null)
-  const elevenLabsTokenRef = useRef<string | null>(null)
+  const elevenLabsTokensRef = useRef<TokenPair>({ mic: null, system: null })
   const elevenLabsWsRef = useRef<ElevenLabsWebSocket | null>(null)
+  const micWsRef = useRef<ElevenLabsWebSocket | null>(null)
+  const systemWsRef = useRef<ElevenLabsWebSocket | null>(null)
 
-  // Pre-fetch token on mount
-  const prefetchToken = async (): Promise<void> => {
+  // Pre-fetch tokens on mount (need two tokens for mic and system audio)
+  const prefetchTokens = async (): Promise<void> => {
     try {
-      const token = await fetchElevenLabsToken()
-      elevenLabsTokenRef.current = token
+      // Fetch two tokens in parallel for mic and system audio
+      const [micToken, systemToken] = await Promise.all([
+        fetchElevenLabsToken(),
+        fetchElevenLabsToken()
+      ])
+      elevenLabsTokensRef.current = { mic: micToken, system: systemToken }
       setIsReady(true)
-      console.log('Token pre-fetched and ready')
+      console.log('Tokens pre-fetched and ready (mic + system)')
     } catch (error) {
-      console.error('Failed to pre-fetch token:', error)
+      console.error('Failed to pre-fetch tokens:', error)
       // Retry after 2 seconds
-      setTimeout(prefetchToken, 2000)
+      setTimeout(prefetchTokens, 2000)
     }
   }
 
@@ -43,15 +54,18 @@ function App(): React.JSX.Element {
     // Initialize audio capture
     audioCaptureRef.current = new AudioCapture({ sampleRate: 16000, channelCount: 1 })
 
-    // Pre-fetch ElevenLabs token
-    prefetchToken()
+    // Pre-fetch ElevenLabs tokens
+    prefetchTokens()
 
     return () => {
       if (audioCaptureRef.current) {
         audioCaptureRef.current.stop()
       }
-      if (elevenLabsWsRef.current) {
-        elevenLabsWsRef.current.disconnect()
+      if (micWsRef.current) {
+        micWsRef.current.disconnect()
+      }
+      if (systemWsRef.current) {
+        systemWsRef.current.disconnect()
       }
     }
   }, [])
@@ -117,11 +131,17 @@ function App(): React.JSX.Element {
   }, [isPaused])
 
   const handleAudioData = (data: AudioData, source: 'mic' | 'system' | 'mixed'): void => {
-    // Send mixed audio data to ElevenLabs WebSocket only if not paused
-    if (source === 'mixed' && elevenLabsWsRef.current?.connected) {
-      if (!isPausedRef.current) {
-        elevenLabsWsRef.current.sendAudioChunk(data.buffer)
-      }
+    // Skip if paused
+    if (isPausedRef.current) {
+      return
+    }
+    // Send mic audio to mic WebSocket
+    if (source === 'mic' && micWsRef.current?.connected) {
+      micWsRef.current.sendAudioChunk(data.buffer)
+    }
+    // Send system audio to system WebSocket
+    if (source === 'system' && systemWsRef.current?.connected) {
+      systemWsRef.current.sendAudioChunk(data.buffer)
     }
   }
 
@@ -167,37 +187,46 @@ function App(): React.JSX.Element {
       console.log('Toggling pause state from', isPaused, 'to', newPausedState)
       setIsPaused(newPausedState)
     } else {
-      // Start listening - use pre-fetched token
-      if (!elevenLabsTokenRef.current) {
-        alert('Token not ready yet. Please wait a moment and try again.')
+      // Start listening - use pre-fetched tokens
+      if (!elevenLabsTokensRef.current.mic) {
+        alert('Tokens not ready yet. Please wait a moment and try again.')
         return
       }
       try {
-        const token = elevenLabsTokenRef.current
-        console.log('Using pre-fetched token:', token.substring(0, 20) + '...')
+        const { mic: micToken, system: systemToken } = elevenLabsTokensRef.current
+        console.log('Using pre-fetched tokens for mic and system audio')
 
-        // Connect to ElevenLabs WebSocket
-        const ws = new ElevenLabsWebSocket()
-        elevenLabsWsRef.current = ws
-
-        await ws.connect(token, {
-          onPartialTranscript: (text) => {
-            console.log('Partial transcript:', text)
+        // Create WebSocket callbacks
+        const wsCallbacks = {
+          onPartialTranscript: (text: string, source: AudioSource) => {
+            console.log(`Partial transcript (${source}):`, text)
             setPartialTranscript(text)
           },
-          onCommittedTranscript: (text) => {
-            console.log('Committed transcript:', text)
-            setCommittedTranscripts((prev) => [...prev, text])
+          onCommittedTranscript: (text: string, source: AudioSource) => {
+            console.log(`Committed transcript (${source}):`, text)
+            setCommittedTranscripts((prev) => [...prev, `[${source}] ${text}`])
             setPartialTranscript('') // Clear partial when committed
           },
-          onError: (error) => {
-            console.error('ElevenLabs WebSocket error:', error)
-            alert(`ElevenLabs WebSocket error: ${error.message}`)
+          onError: (error: Error, source: AudioSource) => {
+            console.error(`ElevenLabs WebSocket error (${source}):`, error)
+            alert(`ElevenLabs WebSocket error (${source}): ${error.message}`)
           },
-          onClose: () => {
-            console.log('ElevenLabs WebSocket closed')
+          onClose: (source: AudioSource) => {
+            console.log(`ElevenLabs WebSocket closed (${source})`)
           }
-        })
+        }
+
+        // Connect mic WebSocket
+        const micWs = new ElevenLabsWebSocket()
+        micWsRef.current = micWs
+        await micWs.connect(micToken!, 'mic', wsCallbacks)
+
+        // Connect system WebSocket if token available
+        if (systemToken) {
+          const systemWs = new ElevenLabsWebSocket()
+          systemWsRef.current = systemWs
+          await systemWs.connect(systemToken, 'system', wsCallbacks)
+        }
 
         // Start audio capture
         await audioCaptureRef.current.start(handleAudioData)
@@ -221,12 +250,16 @@ function App(): React.JSX.Element {
     // Stop listening if currently active
     if (isListening && audioCaptureRef.current) {
       await audioCaptureRef.current.stop()
-      if (elevenLabsWsRef.current) {
-        elevenLabsWsRef.current.disconnect()
-        elevenLabsWsRef.current = null
+      if (micWsRef.current) {
+        micWsRef.current.disconnect()
+        micWsRef.current = null
+      }
+      if (systemWsRef.current) {
+        systemWsRef.current.disconnect()
+        systemWsRef.current = null
       }
       setIsListening(false)
-      elevenLabsTokenRef.current = null
+      elevenLabsTokensRef.current = { mic: null, system: null }
       setPartialTranscript('')
     }
 
@@ -255,9 +288,9 @@ function App(): React.JSX.Element {
       setFeedback(`Error getting feedback: ${errorMessage}`)
     } finally {
       setIsLoadingFeedback(false)
-      // Pre-fetch new token for next session
+      // Pre-fetch new tokens for next session
       if (!isReady) {
-        prefetchToken()
+        prefetchTokens()
       }
     }
   }

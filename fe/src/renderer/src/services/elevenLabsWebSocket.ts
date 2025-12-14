@@ -8,11 +8,13 @@ export interface TranscriptEvent {
   text: string
 }
 
+export type AudioSource = 'mic' | 'system'
+
 export interface ElevenLabsWebSocketCallbacks {
-  onPartialTranscript?: (text: string) => void
-  onCommittedTranscript?: (text: string) => void
-  onError?: (error: Error) => void
-  onClose?: () => void
+  onPartialTranscript?: (text: string, source: AudioSource) => void
+  onCommittedTranscript?: (text: string, source: AudioSource) => void
+  onError?: (error: Error, source: AudioSource) => void
+  onClose?: (source: AudioSource) => void
 }
 
 export class ElevenLabsWebSocket {
@@ -29,6 +31,7 @@ export class ElevenLabsWebSocket {
     // Create 100ms of silence at 16kHz (1600 samples)
     return new Int16Array(1600).fill(0)
   }
+  private source: AudioSource = 'mic'
 
   /**
    * Convert PCM Int16Array to base64 string
@@ -53,13 +56,14 @@ export class ElevenLabsWebSocket {
   /**
    * Connect to ElevenLabs Realtime STT WebSocket
    */
-  async connect(token: string, callbacks: ElevenLabsWebSocketCallbacks = {}): Promise<void> {
+  async connect(token: string, source: AudioSource, callbacks: ElevenLabsWebSocketCallbacks = {}): Promise<void> {
     if (this.isConnected && this.ws) {
       console.warn('WebSocket already connected')
       return
     }
 
     this.callbacks = callbacks
+    this.source = source
 
     // Build WebSocket URL with query parameters
     const params = new URLSearchParams({
@@ -71,14 +75,14 @@ export class ElevenLabsWebSocket {
     })
 
     const wsUrl = `wss://api.elevenlabs.io/v1/speech-to-text/realtime?${params.toString()}`
-    console.log('Connecting to ElevenLabs WebSocket:', wsUrl.replace(token, 'TOKEN_HIDDEN'))
+    console.log(`Connecting to ElevenLabs WebSocket (${source}):`, wsUrl.replace(token, 'TOKEN_HIDDEN'))
 
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(wsUrl)
 
         this.ws.onopen = () => {
-          console.log('ElevenLabs WebSocket connected')
+          console.log(`ElevenLabs WebSocket connected (${this.source})`)
           this.isConnected = true
           this.startKeepalive()
           resolve()
@@ -89,28 +93,28 @@ export class ElevenLabsWebSocket {
             const data = JSON.parse(event.data)
             this.handleMessage(data)
           } catch (error) {
-            console.error('Error parsing WebSocket message:', error)
+            console.error(`Error parsing WebSocket message (${this.source}):`, error)
           }
         }
 
         this.ws.onerror = (error) => {
-          console.error('WebSocket error:', error)
+          console.error(`WebSocket error (${this.source}):`, error)
           const wsError = new Error('WebSocket connection error')
-          this.callbacks.onError?.(wsError)
+          this.callbacks.onError?.(wsError, this.source)
           reject(wsError)
         }
 
         this.ws.onclose = (event) => {
-          console.log('WebSocket closed:', event.code, event.reason)
+          console.log(`WebSocket closed (${this.source}):`, event.code, event.reason)
           this.stopKeepalive()
           this.isConnected = false
           this.ws = null
           this.silentChunk = null
-          this.callbacks.onClose?.()
+          this.callbacks.onClose?.(this.source)
         }
       } catch (error) {
         const err = error instanceof Error ? error : new Error('Failed to create WebSocket')
-        this.callbacks.onError?.(err)
+        this.callbacks.onError?.(err, this.source)
         reject(err)
       }
     })
@@ -120,64 +124,64 @@ export class ElevenLabsWebSocket {
    * Handle incoming WebSocket messages
    */
   private async handleMessage(data: any): Promise<void> {
-    // Handle different message typesata
+    // Handle different message types
     if (data.message_type) {
       switch (data.message_type) {
         case 'session_started':
-          console.log('ElevenLabs session started:', data.session_id)
+          console.log(`ElevenLabs session started (${this.source}):`, data.session_id)
           break
 
         case 'partial_transcript':
           if (data.text && this.callbacks.onPartialTranscript) {
-            this.callbacks.onPartialTranscript(data.text)
+            this.callbacks.onPartialTranscript(data.text, this.source)
           }
           break
 
         case 'committed_transcript':
           if (data.text && this.callbacks.onCommittedTranscript) {
-            console.log('Committed transcript:', data.text)
+            console.log(`Committed transcript (${this.source}):`, data.text)
             // TODO replace hardcoded localhost:3000 with process.env.BACKEND_URL
             const response = await fetch(`http://localhost:3000/agent/run`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({ transcript: data.text })
+              body: JSON.stringify({ transcript: data.text, source: this.source })
             })
             // log response code from backend
             console.log('Backend response code:', response.status)
-            this.callbacks.onCommittedTranscript(data.text)
+            this.callbacks.onCommittedTranscript(data.text, this.source)
           }
           break
 
         case 'input_error':
-          console.error('ElevenLabs input error:', data.error)
-          this.callbacks.onError?.(new Error(data.error || 'Input error'))
+          console.error(`ElevenLabs input error (${this.source}):`, data.error)
+          this.callbacks.onError?.(new Error(data.error || 'Input error'), this.source)
           break
 
         default:
-          console.log('Unknown message_type:', data.message_type, data)
+          console.log(`Unknown message_type (${this.source}):`, data.message_type, data)
       }
     } else if (data.type) {
       // Handle legacy format with 'type' field
       switch (data.type) {
         case 'partial_transcript':
           if (data.text && this.callbacks.onPartialTranscript) {
-            this.callbacks.onPartialTranscript(data.text)
+            this.callbacks.onPartialTranscript(data.text, this.source)
           }
           break
 
         case 'committed_transcript':
           if (data.text && this.callbacks.onCommittedTranscript) {
-            this.callbacks.onCommittedTranscript(data.text)
+            this.callbacks.onCommittedTranscript(data.text, this.source)
           }
           break
 
         default:
-          console.log('Unknown message type:', data.type, data)
+          console.log(`Unknown message type (${this.source}):`, data.type, data)
       }
     } else {
-      console.log('Unknown message format:', data)
+      console.log(`Unknown message format (${this.source}):`, data)
     }
   }
 
@@ -231,7 +235,7 @@ export class ElevenLabsWebSocket {
       this.ws.send(JSON.stringify(message))
     } catch (error) {
       console.error('Error sending audio chunk:', error)
-      this.callbacks.onError?.(error instanceof Error ? error : new Error('Failed to send audio'))
+      this.callbacks.onError?.(error instanceof Error ? error : new Error('Failed to send audio'), this.source)
     }
   }
 
