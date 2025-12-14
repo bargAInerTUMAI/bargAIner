@@ -97,7 +97,11 @@ function App(): React.JSX.Element {
         if (response.ok) {
           const data = await response.json()
           if (data.result) {
-            setAgentMessages((prev) => [...prev, data.result])
+            setAgentMessages((prev) => {
+              const updated = [...prev, data.result]
+              // Keep only the last 3 messages
+              return updated.slice(-3)
+            })
           }
           console.log('Polled agent result:', data.result)
         }
@@ -362,9 +366,11 @@ function App(): React.JSX.Element {
         {/* Response section - expands when there are messages */}
         {agentMessages.length > 0 && (
           <div className="response-section">
-            <div className="markdown-content">
-              <ReactMarkdown>{agentMessages[agentMessages.length - 1]}</ReactMarkdown>
-            </div>
+            {agentMessages.map((message, index) => (
+              <div key={index} className="markdown-content">
+                <ReactMarkdown>{message}</ReactMarkdown>
+              </div>
+            ))}
           </div>
         )}
 
